@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.7.0
+- `DesktopWindow` `onShow` and `onHide` callbacks, called after a window opens and closes.
+
 ## 0.6.0
 - `application` items: icons that are plain links (`href`). A click selects, a double-click or Enter zooms out and launches, modified clicks open a new tab.
 - Custom icon art for any item: `art`, rows of `0`/`1`.

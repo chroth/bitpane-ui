@@ -46,6 +46,9 @@ export class DesktopWindow {
     this.placed = false;
     this.opener = null;
     this.zoomed = null;
+    // Called after the window opens and after it closes.
+    this.onShow = null;
+    this.onHide = null;
     this.el = el('div', 'win');
     windowOf.set(this.el, this);
     this.el.setAttribute('role', 'dialog');
@@ -189,6 +192,7 @@ export class DesktopWindow {
     this.layout();
     this.activate();
     this.opener?.setOpen(true);
+    this.onShow?.();
   }
 
   hide() {
@@ -200,6 +204,7 @@ export class DesktopWindow {
     const next = openWindows[openWindows.length - 1];
     if (next) next.activate();
     zoomRects(this.rect, this.opener?.rect());
+    this.onHide?.();
   }
 
   placeFirst() {

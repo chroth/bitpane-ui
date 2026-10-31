@@ -171,6 +171,18 @@ describe('windows', () => {
     await close(page);
   });
 
+  test('onShow and onHide are called when the window opens and closes', async () => {
+    const page = await open('window');
+    await page.waitForFunction(() => t.shown === 1);
+    await win(page, 'Notes').locator('.close').click();
+    assert.deepEqual(await page.evaluate(() => [t.shown, t.hidden]), [1, 1]);
+    await page.evaluate(() => t.notes.show());
+    assert.deepEqual(await page.evaluate(() => [t.shown, t.hidden]), [2, 1]);
+    await page.evaluate(() => t.notes.show());
+    assert.equal(await page.evaluate(() => t.shown), 2, 'showing an open window counted again');
+    await close(page);
+  });
+
   test('dragging the title bar moves the window', async () => {
     const page = await open('window');
     const before = await rect(page, 'notes');

@@ -61,6 +61,10 @@ const scenes = {
     notes.content.append(bitmapText('Hello'));
     pushButton(notes.content, 'OK', { x: 20, y: 40, w: 60, h: 20 }, true, () => t.pressed++);
     t.notes = notes;
+    t.shown = 0;
+    t.hidden = 0;
+    notes.onShow = () => t.shown++;
+    notes.onHide = () => t.hidden++;
     t.stopResize = onResize(() => t.resizes++);
     notes.show();
   },

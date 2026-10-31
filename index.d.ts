@@ -57,6 +57,10 @@ export class DesktopWindow {
   readonly content: HTMLDivElement;
   rect: Rect;
   opener: Opener | null;
+  /** Called after the window opens. */
+  onShow: (() => void) | null;
+  /** Called after the window closes. */
+  onHide: (() => void) | null;
   show(): Promise<void>;
   hide(): void;
   activate(): void;
