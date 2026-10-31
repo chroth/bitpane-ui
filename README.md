@@ -72,6 +72,8 @@ npx playwright install chromium
 npm test
 ```
 
+Set `CHROMIUM_PATH` to run them on an already installed Chromium instead.
+
 ## License
 
 MIT

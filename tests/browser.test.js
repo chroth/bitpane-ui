@@ -35,7 +35,8 @@ before(async () => {
   });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   base = `http://127.0.0.1:${server.address().port}`;
-  browser = await chromium.launch();
+  // CHROMIUM_PATH runs the tests on an already installed Chromium.
+  browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH });
 });
 
 after(async () => {
