@@ -531,7 +531,7 @@ class FolderWindow extends DesktopWindow {
     if (this.onChange) this.onChange();
   }
 
-  // Like the classic Finder: this window's item count, then totals for the
+  // This window's item count, then totals for the
   // whole disk. Everything on the desktop, the Trash included, is on the disk.
   updateInfo() {
     const n = this.folder.items.length;
