@@ -14,24 +14,24 @@ Bundle the JavaScript and CSS with your application's build tool:
 import { DesktopWindow, bitmapText, menuBar, pushButton } from 'bitpane-ui';
 import 'bitpane-ui/style.css';
 
-const window = new DesktopWindow('Example', [320, 200]);
-window.content.append(bitmapText('Hello'));
+const notes = new DesktopWindow('Notes', [320, 200]);
+notes.content.append(bitmapText('Hello'));
 
-const open = () => { void window.show(); };
+const open = () => { void notes.show(); };
 const removeMenu = menuBar([
   { label: 'File', items: [
     { label: 'Open', action: open },
     null,
-    { label: 'Close', action: () => window.hide() },
+    { label: 'Close', action: () => notes.hide() },
   ] },
 ]);
-pushButton(window.content, 'OK', { x: 12, y: 32, w: 70, h: 20 }, false, () => window.hide());
+pushButton(notes.content, 'OK', { x: 12, y: 32, w: 70, h: 20 }, false, () => notes.hide());
 open();
 
 // Later: removeMenu() removes the bar and releases its reserved space.
 ```
 
-Append DOM elements or a canvas to `window.content` to provide your own content.
+Append DOM elements or a canvas to a window's `.content` to provide your own content.
 Use `Desktop` for disk and Trash icons, folders, or text/picture documents.
 Folder windows show their item count plus disk-wide used and available space:
 give items a size with `kb` and the disk a `capacity` (both in K) to make the

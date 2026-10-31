@@ -33,7 +33,7 @@ export class Desktop {
   }): DesktopWindow;
   folderWindow(title: string, items: IconItem[], size?: Size): DesktopWindow;
   /** capacity: disk size in K (default 20480). Windows show disk-wide used and available space. */
-  disk(label: string, window: DesktopWindow, options?: { capacity?: number }): void;
+  disk(label: string, folder: DesktopWindow, options?: { capacity?: number }): void;
   trash(items: IconItem[]): void;
 }
 
