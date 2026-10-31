@@ -257,8 +257,13 @@ function glyph(font, ch) {
   return font.glyphs[ch] || font.glyphs['?'];
 }
 
+function fontNamed(name) {
+  if (!Object.hasOwn(FONTS, name)) throw new Error(`Unknown font "${name}"`);
+  return FONTS[name];
+}
+
 export function measure(str, fontName) {
-  const font = FONTS[fontName];
+  const font = fontNamed(fontName);
   let w = 0;
   for (const ch of str) w += glyph(font, ch).w + 1;
   return Math.max(0, w - 1);
@@ -266,7 +271,7 @@ export function measure(str, fontName) {
 
 // Draws lines of text into a canvas, one pixel per CSS pixel.
 export function render(lines, fontName, color) {
-  const font = FONTS[fontName];
+  const font = fontNamed(fontName);
   if (typeof lines === 'string') lines = [lines];
   const width = Math.max(1, ...lines.map((l) => measure(l, fontName)));
   const canvas = document.createElement('canvas');

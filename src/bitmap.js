@@ -212,14 +212,15 @@ const ICONS = {
   },
 };
 
-const iconCache = {};
+const iconCache = new Map();
 function iconBitmaps(name) {
-  if (!iconCache[name]) {
+  if (!Object.hasOwn(ICONS, name)) throw new Error(`Unknown icon kind "${name}"`);
+  if (!iconCache.has(name)) {
     const ink = new Bitmap(32, 32);
     ICONS[name](ink);
-    iconCache[name] = { ink, mask: ink.mask() };
+    iconCache.set(name, { ink, mask: ink.mask() });
   }
-  return iconCache[name];
+  return iconCache.get(name);
 }
 
 // Returns { normal, selected, outline } canvases for an icon.

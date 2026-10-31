@@ -5,8 +5,10 @@ A 1-bit retro desktop UI for the web: windows, icons, menus, dialogs and bitmap 
 ## Install
 
 ```sh
-npm install github:chroth/bitpane-ui
+npm install github:chroth/bitpane-ui#<commit>
 ```
+
+Pin a commit so updates are deliberate.
 
 ```html
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">

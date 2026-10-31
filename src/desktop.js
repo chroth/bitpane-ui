@@ -29,6 +29,9 @@ const DEFAULT_K = { document: 1, picture: 4 };
 let diskCapacity = 20480;
 
 let desktopFolder = null;
+// The library objects behind icon and window elements.
+const iconOf = new WeakMap();
+const windowOf = new WeakMap();
 let selected = null;
 let lastClick = { icon: null, time: 0 };
 let topZ = 10;
@@ -97,6 +100,15 @@ class Folder {
   }
 }
 
+// The library object behind the nearest `selector` ancestor of `e`, skipping
+// elements of the consumer's that merely share the class name.
+function nearest(e, selector, map) {
+  for (let n = e.closest(selector); n; n = n.parentElement && n.parentElement.closest(selector)) {
+    if (map.has(n)) return map.get(n);
+  }
+  return null;
+}
+
 // True if `win` is the window `ic` opens, or is somewhere inside it.
 function isInside(win, ic) {
   for (let w = win; w; w = w.opener && w.opener.folder.owner) if (w === ic.opens) return true;
@@ -114,17 +126,18 @@ class Icon {
   constructor(folder, { label, kind, opens, corner, kb }) {
     this.label = label;
     this.opens = opens;
-    this.ownKb = kb ?? DEFAULT_K[kind] ?? 0;
+    const art = icon(kind); // throws on an unknown kind, before any side effects
+    this.ownKb = kb ?? (Object.hasOwn(DEFAULT_K, kind) ? DEFAULT_K[kind] : 0);
     this.corner = corner;
     this.pinned = !!corner;
     if (opens) opens.opener = this;
     this.el = el('div', 'icon');
-    this.el._icon = this;
+    iconOf.set(this.el, this);
     this.el.tabIndex = 0;
     this.el.setAttribute('role', 'button');
     this.el.setAttribute('aria-label', label);
     this.img = el('div', 'img', this.el);
-    this.setKind(kind);
+    this.setKind(kind, art);
     const lbl = bitmapText(label, 'small');
     lbl.classList.add('lbl');
     lbl.setAttribute('aria-hidden', 'true');
@@ -142,9 +155,9 @@ class Icon {
     folder.add(this);
   }
 
-  setKind(kind) {
+  setKind(kind, art = icon(kind)) {
     this.kind = kind;
-    const art = icon(kind);
+    this.el.dataset.kind = kind;
     art.opened.classList.add('opened');
     art.selected.classList.add('sel');
     this.img.replaceChildren(art.normal, art.opened, art.selected);
@@ -173,14 +186,12 @@ class Icon {
   dropTarget(ev) {
     for (const e of document.elementsFromPoint(ev.clientX, ev.clientY)) {
       if (this.el.contains(e)) continue;
-      const hit = e.closest('.icon');
-      if (hit && hit._icon.opens && hit._icon.opens.folder) {
-        const t = hit._icon;
+      const t = nearest(e, '.icon', iconOf);
+      if (t && t.opens && t.opens.folder) {
         return this.pinned || isInside(t.opens, this) ? null : { folder: t.opens.folder, icon: t };
       }
-      const win = e.closest('.win');
-      if (win) {
-        const w = win._win;
+      const w = nearest(e, '.win', windowOf);
+      if (w) {
         return !w.folder || this.pinned || isInside(w, this) ? null : { folder: w.folder };
       }
       if (e === desktopFolder.content) return { folder: desktopFolder };
@@ -251,7 +262,7 @@ export class DesktopWindow {
     this.opener = null;
     this.zoomed = null;
     this.el = el('div', 'win');
-    this.el._win = this;
+    windowOf.set(this.el, this);
     this.el.setAttribute('role', 'dialog');
     this.el.setAttribute('aria-label', title);
 

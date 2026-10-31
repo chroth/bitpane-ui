@@ -70,8 +70,8 @@ async function close(page) {
 const icon = (page, label) => page.locator(`.icon[aria-label="${label}"]`);
 const win = (page, title) => page.locator(`.win[aria-label="${title}"]`);
 const info = async (page, title) => (await win(page, title).locator('.info .sr-only').allTextContents()).join(' | ');
-const kind = (page, label) => icon(page, label).evaluate((e) => e._icon.kind);
-const rect = (page, title) => win(page, title).evaluate((e) => ({ ...e._win.rect }));
+const kind = (page, label) => icon(page, label).getAttribute('data-kind');
+const rect = (page, handle) => page.evaluate((h) => ({ ...t[h].rect }), handle);
 
 async function openIcon(page, label) {
   await icon(page, label).dblclick();
@@ -143,6 +143,13 @@ describe('screen', () => {
     }
   });
 
+  test('area() works before anything is shown', async () => {
+    const page = await open('menu');
+    const before = await page.evaluate(() => t.areaBefore);
+    assert.ok(before.w > 0 && before.h > 0, JSON.stringify(before));
+    await close(page);
+  });
+
   test('onResize reports changes to area()', async () => {
     const page = await open('window');
     const before = await page.evaluate(() => t.area());
@@ -165,10 +172,10 @@ describe('windows', () => {
 
   test('dragging the title bar moves the window', async () => {
     const page = await open('window');
-    const before = await rect(page, 'Notes');
+    const before = await rect(page, 'notes');
     const bar = await win(page, 'Notes').locator('.tb').boundingBox();
     await drag(page, { x: bar.x + 60, y: bar.y + 10 }, { x: bar.x + 160, y: bar.y + 70 });
-    const after = await rect(page, 'Notes');
+    const after = await rect(page, 'notes');
     assert.deepEqual([after.x - before.x, after.y - before.y], [50, 30]);
     await close(page);
   });
@@ -188,24 +195,24 @@ describe('windows', () => {
 
   test('the zoom box fills the visible area and toggles back', async () => {
     const page = await open('window');
-    const before = await rect(page, 'Notes');
+    const before = await rect(page, 'notes');
     await win(page, 'Notes').locator('.zoom').click();
-    const zoomed = await rect(page, 'Notes');
+    const zoomed = await rect(page, 'notes');
     const a = await page.evaluate(() => t.area());
     assert.ok(zoomed.w > a.w - 20 && zoomed.h > a.h - 20, 'not zoomed to the area');
     await win(page, 'Notes').locator('.zoom').click();
-    assert.deepEqual(await rect(page, 'Notes'), before);
+    assert.deepEqual(await rect(page, 'notes'), before);
     await close(page);
   });
 
   test('the grow box resizes the window', async () => {
     const page = await open('window');
-    const before = await rect(page, 'Notes');
+    const before = await rect(page, 'notes');
     await drag(page, win(page, 'Notes').locator('.grow'), await (async () => {
       const g = await center(win(page, 'Notes').locator('.grow'));
       return { x: g.x + 80, y: g.y + 40 };
     })());
-    const after = await rect(page, 'Notes');
+    const after = await rect(page, 'notes');
     assert.deepEqual([after.w - before.w, after.h - before.h], [40, 20]);
     await close(page);
   });
@@ -285,6 +292,36 @@ describe('desktop', () => {
     await page.waitForTimeout(500);
     await drag(page, icon(page, 'Projects').locator('.img'), win(page, 'Projects').locator('.content'));
     assert.equal(await icon(page, 'Projects').evaluate((e) => e.closest('.win').getAttribute('aria-label')), 'HD');
+    await close(page);
+  });
+
+  test('unknown icon kinds and font names fail with a clear error', async () => {
+    const page = await open('desktop');
+    const errors = await page.evaluate(() => ['nope', '__proto__', 'constructor'].map((kind) => {
+      try { t.desktop.folderWindow('X', [{ label: 'X', kind, opens: t.readme }]); return 'no error'; } catch (e) { return e.message; }
+    }));
+    assert.deepEqual(errors, ['Unknown icon kind "nope"', 'Unknown icon kind "__proto__"', 'Unknown icon kind "constructor"']);
+    assert.equal(await page.evaluate(() => t.readme.opener.label), 'Readme', 'a failed icon still changed state');
+    const fonts = await page.evaluate(() => ['nope', '__proto__'].map((f) => {
+      try { t.bitmapText('x', f); return 'no error'; } catch (e) { return e.message; }
+    }));
+    assert.deepEqual(fonts, ['Unknown font "nope"', 'Unknown font "__proto__"']);
+    await close(page);
+  });
+
+  test("consumer elements sharing the library's class names don't break drag and drop", async () => {
+    const page = await open('desktop');
+    await openIcon(page, 'HD');
+    await icon(page, 'Projects').focus();
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(500);
+    await page.evaluate(() => {
+      const a = t.area();
+      Object.assign(t.projects.rect, { x: a.x + a.w - t.projects.rect.w - 80, y: a.y + a.h - t.projects.rect.h - 70 });
+      t.projects.layout();
+    });
+    await drag(page, icon(page, 'Readme').locator('.img'), win(page, 'Projects').locator('.content > div.icon.win'));
+    assert.equal(await icon(page, 'Readme').evaluate((e) => e.closest('.win[aria-label]').getAttribute('aria-label')), 'Projects');
     await close(page);
   });
 

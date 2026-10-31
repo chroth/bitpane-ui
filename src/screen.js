@@ -70,7 +70,9 @@ function fit() {
 }
 
 // The part of the screen that is actually visible, in screen pixels.
+// Creates the screen on first use, so the area is never empty.
 export function area() {
+  screen();
   return usable;
 }
 

@@ -2,11 +2,11 @@
 // the tests need are exposed on window.t.
 
 import {
-  Desktop, DesktopWindow, menuBar, pushButton, bitmapText, crash, area, onResize, screen,
+  Desktop, DesktopWindow, menuBar, pushButton, bitmapText, crash, area, onResize,
 } from '../../src/index.js';
 import '../../src/bitpane.css';
 
-const t = { pressed: 0, menuActions: [], resizes: 0, area };
+const t = { pressed: 0, menuActions: [], resizes: 0, area, bitmapText };
 window.t = t;
 
 const scenes = {
@@ -24,7 +24,12 @@ const scenes = {
     ]);
     desktop.disk('HD', hd, { capacity: 1000 });
     desktop.trash([{ label: 'Photo', kind: 'picture', kb: 7, opens: photo }]);
-    Object.assign(t, { hd, projects, readme, photo });
+    // Consumer content that happens to use the library's class names.
+    const decoy = document.createElement('div');
+    decoy.className = 'icon win';
+    Object.assign(decoy.style, { position: 'absolute', left: '150px', top: '10px', width: '120px', height: '60px' });
+    projects.content.append(decoy);
+    Object.assign(t, { desktop, hd, projects, readme, photo });
   },
 
   window() {
@@ -37,7 +42,6 @@ const scenes = {
   },
 
   menu() {
-    screen();
     t.areaBefore = { ...area() };
     t.removeMenu = menuBar([
       { label: 'File', items: [
