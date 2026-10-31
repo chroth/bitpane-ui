@@ -2,7 +2,7 @@
 // the tests need are exposed on window.t.
 
 import {
-  Desktop, DesktopWindow, menuBar, pushButton, bitmapText, crash, area, onResize,
+  Desktop, DesktopWindow, textWindow, pictureWindow, menuBar, pushButton, bitmapText, alert, area, onResize,
 } from '../../src/index.js';
 import '../../src/bitpane.css';
 
@@ -12,11 +12,11 @@ window.t = t;
 const scenes = {
   desktop() {
     const desktop = new Desktop();
-    const readme = desktop.textWindow('Readme', [
+    const readme = textWindow('Readme', [
       'Hello',
       { text: 'Link', href: 'https://example.com/' },
     ]);
-    const photo = desktop.pictureWindow('Photo', { src: '/pixel.png', width: 40, height: 30, alt: 'A photo' });
+    const photo = pictureWindow('Photo', { src: '/pixel.png', width: 40, height: 30, alt: 'A photo' });
     const projects = desktop.folderWindow('Projects', []);
     const hd = desktop.folderWindow('HD', [
       { label: 'Readme', kind: 'document', opens: readme, kb: 3 },
@@ -30,6 +30,18 @@ const scenes = {
     Object.assign(decoy.style, { position: 'absolute', left: '150px', top: '10px', width: '120px', height: '60px' });
     projects.content.append(decoy);
     Object.assign(t, { desktop, hd, projects, readme, photo });
+  },
+
+  // A desktop in another language.
+  swedish() {
+    const desktop = new Desktop({
+      text: { items: (n) => `${n} objekt`, used: (k) => `${k} på disken`, free: (k) => `${k} ledigt`, trash: 'Papperskorg' },
+      labels: { close: 'Stäng', zoom: 'Zooma' },
+    });
+    const hd = desktop.folderWindow('HD', []);
+    desktop.disk('HD', hd, { capacity: 1000 });
+    desktop.trash([]);
+    t.hd = hd;
   },
 
   window() {
@@ -51,14 +63,25 @@ const scenes = {
         { label: 'Quit', action: () => t.menuActions.push('quit') },
       ] },
       { label: 'Edit', items: [{ label: 'Undo', action: () => t.menuActions.push('undo') }] },
-    ]);
+    ], { label: 'Main menu' });
     t.areaWithMenu = { ...area() };
   },
 
-  crash() {
-    const notes = new DesktopWindow('Behind', [240, 160]);
-    notes.show();
-    t.restart = crash(42, '#restarted');
+  // An alert with a link button, like a crash screen.
+  linkAlert() {
+    new DesktopWindow('Behind', [240, 160]).show();
+    t.alert = alert({ icon: 'bomb', message: ['Something broke.', '', 'ID = 42'], buttons: [{ label: 'Restart', href: '#restarted' }] });
+  },
+
+  // An alert with two action buttons.
+  actionAlert() {
+    t.alert = alert({
+      message: 'Save changes?',
+      buttons: [
+        { label: 'Discard', action: () => (t.choice = 'discard') },
+        { label: 'Save', action: () => (t.choice = 'save') },
+      ],
+    });
   },
 };
 

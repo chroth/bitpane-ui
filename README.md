@@ -29,34 +29,38 @@ notes.show();
 
 Sizes and positions are in screen pixels; the screen is scaled up by a whole number to fill the page.
 
+**Screen**
+- `screen()`: the screen element.
+- `area()`: the visible screen area, clear of the menu bar and phone notches.
+- `onResize(callback)`: called when `area()` changes; returns a function that stops it.
+
+**Controls**
+- `bitmapText(text, font)`: bitmap text that screen readers can read; `font` is `system` or `small`.
+- `pushButton(parent, label, { x, y, w, h }, isDefault, onPress)`: push button.
+- `linkButton(parent, label, { x, y, w, h }, href, isDefault)`: push button that is a plain link.
+- `menuBar([{ label, items: [{ label, action, disabled }, null] }], { label })`: menu bar; `null` is a separator. Returns a function that removes it.
+- `alert({ icon, message, buttons })`: modal alert. A button is `{ label, href }` or `{ label, action }`; action buttons close the alert. The last button is the default. Returns `{ buttons, close }`.
+
 **Windows**
-- `new DesktopWindow(title, [w, h])`: draggable, resizable, zoomable window with scroll bars. Put your own DOM or canvas in `.content`.
+- `new DesktopWindow(title, [w, h], { info, labels })`: draggable, resizable, zoomable window with scroll bars. Put your own DOM or canvas in `.content`.
   - `show()`, `hide()`, `activate()`, `toggleZoom()`
   - `layout()`: update the scroll bars after changing the content.
+  - `setInfo([left, centre, right])`: the info line under the title bar, with `info: true`.
+  - `labels`: screen-reader names for the close and zoom boxes.
+- `textWindow(title, lines)`: text document; a line is a string or `{ text, href }`.
+- `pictureWindow(title, { src, width, height, alt })`: picture, loaded when first opened.
 
-**Desktop** (one per page)
-- `new Desktop()`
+**Finder** (one per page)
+- `new Desktop({ text, labels })`
   - `disk(label, folder, { capacity })`: disk icon in the top right; `capacity` in K, default 20480.
   - `trash(items)`: Trash icon in the bottom right; looks full when it holds something.
   - `folderWindow(title, items, [w, h])`: folder window with icons.
-  - `textWindow(title, lines)`: text document; a line is a string or `{ text, href }`.
-  - `pictureWindow(title, { src, width, height, alt })`: picture document, loaded when first opened.
+  - `text`: replaces the English wording: `{ items(n), used(k), free(k), trash }`.
 - Items: `{ label, kind, opens, kb }`.
   - `kind`: `document`, `picture` or `folder`.
-  - `opens`: the window a double-click opens.
+  - `opens`: the window a double-click opens; it zooms open from the icon.
   - `kb`: size on disk in K.
 - Icons can be dragged between the desktop, folders and the Trash. Folder windows show their item count and the disk's used and available space.
-
-**Controls**
-- `menuBar([{ label, items: [{ label, action, disabled }, null] }])`: menu bar; `null` is a separator. Returns a function that removes it.
-- `pushButton(parent, label, { x, y, w, h }, isDefault, onPress)`: push button.
-- `bitmapText(text, font)`: bitmap text that screen readers can read; `font` is `system` or `small`.
-
-**Screen**
-- `crash(id, href)`: system error dialog with a bomb. Restart is a plain link to `href`, drawn as a button; returns the link.
-- `area()`: the visible screen area, clear of the menu bar and phone notches.
-- `onResize(callback)`: called when `area()` changes; returns a function that stops it.
-- `screen()`: the screen element.
 
 Works with mouse, touch and keyboard.
 

@@ -31,3 +31,12 @@ export function isOver(e, event) {
   return e.contains(document.elementFromPoint(event.clientX, event.clientY));
 }
 
+
+// The library object behind the nearest `selector` ancestor of `e`, skipping
+// elements of the consumer's that merely share the class name.
+export function nearest(e, selector, map) {
+  for (let n = e.closest(selector); n; n = n.parentElement && n.parentElement.closest(selector)) {
+    if (map.has(n)) return map.get(n);
+  }
+  return null;
+}

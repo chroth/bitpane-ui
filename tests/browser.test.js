@@ -259,6 +259,16 @@ describe('desktop', () => {
     await close(page);
   });
 
+  test('wording and labels can be replaced', async () => {
+    const page = await open('swedish');
+    await openIcon(page, 'HD');
+    assert.equal(await info(page, 'HD'), '0 objekt | 0K på disken | 1,000K ledigt');
+    assert.equal(await icon(page, 'Papperskorg').count(), 1);
+    assert.equal(await win(page, 'HD').locator('.close').getAttribute('aria-label'), 'Stäng');
+    assert.equal(await win(page, 'HD').locator('.zoom').getAttribute('aria-label'), 'Zooma');
+    await close(page);
+  });
+
   test('icons open with the keyboard', async () => {
     const page = await open('desktop');
     await icon(page, 'HD').focus();
@@ -295,12 +305,12 @@ describe('desktop', () => {
     await close(page);
   });
 
-  test('unknown icon kinds and font names fail with a clear error', async () => {
+  test('unknown item kinds and font names fail with a clear error', async () => {
     const page = await open('desktop');
-    const errors = await page.evaluate(() => ['nope', '__proto__', 'constructor'].map((kind) => {
+    const errors = await page.evaluate(() => ['nope', '__proto__', 'constructor', 'trashFull', 'hd'].map((kind) => {
       try { t.desktop.folderWindow('X', [{ label: 'X', kind, opens: t.readme }]); return 'no error'; } catch (e) { return e.message; }
     }));
-    assert.deepEqual(errors, ['Unknown icon kind "nope"', 'Unknown icon kind "__proto__"', 'Unknown icon kind "constructor"']);
+    assert.deepEqual(errors, ['nope', '__proto__', 'constructor', 'trashFull', 'hd'].map((k) => `Unknown item kind "${k}"`));
     assert.equal(await page.evaluate(() => t.readme.opener.label), 'Readme', 'a failed icon still changed state');
     const fonts = await page.evaluate(() => ['nope', '__proto__'].map((f) => {
       try { t.bitmapText('x', f); return 'no error'; } catch (e) { return e.message; }
@@ -384,6 +394,7 @@ describe('controls', () => {
     const page = await open('menu');
     const [before, withMenu] = await page.evaluate(() => [t.areaBefore, t.areaWithMenu]);
     assert.equal(withMenu.y - before.y, 22, 'menu bar space not reserved');
+    assert.equal(await page.locator('.menu-bar').getAttribute('aria-label'), 'Main menu');
     const file = page.getByRole('button', { name: 'File' });
     await file.click();
     assert.equal(await file.getAttribute('aria-expanded'), 'true');
@@ -404,24 +415,38 @@ describe('controls', () => {
     await close(page);
   });
 
-  test('crash() blocks the screen; Restart is a plain link', async () => {
-    const page = await open('crash');
+  test('alert() blocks the screen; a link button is a plain link', async () => {
+    const page = await open('linkAlert');
     await page.waitForSelector('.dlg');
     const behind = await center(win(page, 'Behind').locator('.tb'));
     assert.equal(await page.evaluate(({ x, y }) => !!document.elementFromPoint(x, y).closest('.modal'), behind), true);
-    assert.match(await page.locator('.dlg').innerText(), /ID = 42/);
+    assert.match(await page.locator('.dlg').innerText(), /Something broke\.[\s\S]*ID = 42/);
     const restart = page.getByRole('link', { name: 'Restart' });
     assert.equal(await restart.getAttribute('href'), '#restarted');
-    assert.equal(await page.evaluate(() => document.activeElement === t.restart), true);
+    assert.equal(await page.evaluate(() => document.activeElement === t.alert.buttons[0]), true);
     await page.keyboard.press('Enter');
     await page.waitForFunction(() => location.hash === '#restarted');
     await close(page);
   });
 
-  test('clicking Restart follows its link', async () => {
-    const page = await open('crash');
+  test('clicking a link button follows its link', async () => {
+    const page = await open('linkAlert');
     await page.getByRole('link', { name: 'Restart' }).click();
     await page.waitForFunction(() => location.hash === '#restarted');
     await close(page);
   });
+
+  test('alert() action buttons close the alert; Return presses the last one', async () => {
+    let page = await open('actionAlert');
+    await page.getByRole('button', { name: 'Discard' }).click();
+    assert.equal(await page.evaluate(() => t.choice), 'discard');
+    assert.equal(await page.locator('.modal').count(), 0);
+    await close(page);
+    page = await open('actionAlert');
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => t.choice === 'save');
+    assert.equal(await page.locator('.modal').count(), 0);
+    await close(page);
+  });
+
 });

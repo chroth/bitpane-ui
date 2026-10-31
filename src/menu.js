@@ -6,13 +6,14 @@ let mounted = false;
 const HEIGHT = 22;
 
 /** Mount [{ label, items: [{ label, action, disabled? } | null] }].
- * A null item draws a separator. Returns a function that removes the bar.
+ * A null item draws a separator. label: what screen readers call the bar.
+ * Returns a function that removes the bar.
  */
-export function menuBar(menus) {
+export function menuBar(menus, { label = 'Application menu' } = {}) {
   if (mounted) throw new Error('There is only one menu bar.');
   mounted = true;
   const bar = el('nav', 'menu-bar', screen());
-  bar.setAttribute('aria-label', 'Application menu');
+  bar.setAttribute('aria-label', label);
   let active = null;
   const triggers = [];
   const close = (restoreFocus = false) => {
