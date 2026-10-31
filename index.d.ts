@@ -1,4 +1,4 @@
-/** All coordinates and sizes are logical Mac pixels, before integer scaling. */
+/** All coordinates and sizes are logical screen pixels, before integer scaling. */
 export interface Rect { x: number; y: number; w: number; h: number }
 export type Size = [width: number, height: number];
 export type TextLine = string | { text: string; href: string };
@@ -22,8 +22,8 @@ export class DesktopWindow {
   layout(): void;
 }
 
-/** Optional desktop icons and folder/document helpers; one Finder per page. */
-export class Finder {
+/** Optional desktop icons and folder/document helpers; one Desktop per page. */
+export class Desktop {
   constructor();
   textWindow(title: string, lines: TextLine[]): DesktopWindow;
   pictureWindow(title: string, picture: {

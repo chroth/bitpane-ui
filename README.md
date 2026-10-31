@@ -2,7 +2,7 @@
 
 A small, dependency-free ES module library for a 1-bit retro desktop UI.
 Includes bitmap fonts and artwork, a desktop pattern, integer screen scaling,
-safe-area handling, windows, Finder folders/icons, buttons, a system error dialog,
+safe-area handling, windows, desktop folders/icons, buttons, a system error dialog,
 and optional application menus. Window content and application behavior are
 supplied by the consumer.
 
@@ -32,8 +32,8 @@ open();
 ```
 
 Append DOM elements or a canvas to `window.content` to provide your own content.
-Use `Finder` for disk and Trash icons, folders, or text/picture documents.
-Windows and menus can also be used without a Finder. Nothing is mounted on import.
+Use `Desktop` for disk and Trash icons, folders, or text/picture documents.
+Windows and menus can also be used without a `Desktop`. Nothing is mounted on import.
 See `index.d.ts` for the supported API; modules below `src/` are internal.
 `bitmapText()` provides accessible text using the same bitmap renderer.
 
@@ -46,7 +46,7 @@ creates an unavailable item. The menu bar is optional and only mounted by
 
 ## Layout and lifecycle
 
-This is a **full-page desktop**, with document-level CSS and a single screen/Finder
+This is a **full-page desktop**, with document-level CSS and a single screen/`Desktop`
 per page. Include the CSS once. Use a separate page or iframe if you need isolation
 from another UI. Multiple independent desktops on one page are not supported.
 
@@ -74,7 +74,7 @@ To create an installable tarball from the package directory, run `npm pack`.
 Install that tarball in a consumer with:
 
 ```sh
-npm install /path/to/bitpane-ui-0.1.0.tgz
+npm install /path/to/bitpane-ui-0.2.0.tgz
 ```
 
 ## License

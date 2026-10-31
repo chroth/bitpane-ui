@@ -1,4 +1,4 @@
-export { Finder, DesktopWindow } from './finder.js';
+export { Desktop, DesktopWindow } from './desktop.js';
 export { pushButton } from './button.js';
 export { menuBar } from './menu.js';
 export { crash } from './dialog.js';

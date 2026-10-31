@@ -1,11 +1,11 @@
-// The Finder: icons on the desktop and in folder windows, and the windows
+// The desktop: icons on the desktop and in folder windows, and the windows
 // they open. A page only describes what exists, for example:
 //
-//   const finder = new Finder();
-//   const about = finder.textWindow('About', ['Hello', { text: 'GitHub', href }]);
-//   const hd = finder.folderWindow('HD', [{ label: 'About', kind: 'document', opens: about }]);
-//   finder.disk('HD', hd);
-//   finder.trash([]);
+//   const desktop = new Desktop();
+//   const about = desktop.textWindow('About', ['Hello', { text: 'GitHub', href }]);
+//   const hd = desktop.folderWindow('HD', [{ label: 'About', kind: 'document', opens: about }]);
+//   desktop.disk('HD', hd);
+//   desktop.trash([]);
 //
 // Everything else lives here: where icons and windows go, selecting and
 // double-clicking, dragging icons between folders, the desktop and the
@@ -27,7 +27,7 @@ const FREE_SPACE = '19,456K available';
 // whatever they contain.
 const ITEM_K = { document: 2, picture: 4 };
 
-let desktop = null;
+let desktopFolder = null;
 let selected = null;
 let lastClick = { icon: null, time: 0 };
 let topZ = 10;
@@ -180,7 +180,7 @@ class Icon {
         const w = win._win;
         return !w.folder || this.pinned || isInside(w, this) ? null : { folder: w.folder };
       }
-      if (e === desktop.content) return { folder: desktop };
+      if (e === desktopFolder.content) return { folder: desktopFolder };
     }
     return null;
   }
@@ -225,7 +225,7 @@ class Icon {
         if (t.icon) return t.folder.add(this);
         const p = pointer(ev);
         const c = t.folder.content;
-        const origin = t.folder === desktop ? { x: 0, y: 0 } : rectOf(c);
+        const origin = t.folder === desktopFolder ? { x: 0, y: 0 } : rectOf(c);
         this.corner = null;
         t.folder.add(this, {
           x: Math.round(p.x - grab.x - origin.x + c.scrollLeft),
@@ -239,7 +239,7 @@ class Icon {
 // --- Windows ---
 
 export class DesktopWindow {
-  // size: [w, h] in Mac pixels. The first time a window opens it is placed
+  // size: [w, h] in screen pixels. The first time a window opens it is placed
   // near the icon that opened it; after that it stays where the user left it.
   constructor(title, [w, h], { info = false } = {}) {
     screen();
@@ -540,13 +540,13 @@ class FolderWindow extends DesktopWindow {
   }
 }
 
-// --- The Finder ---
+// --- The desktop ---
 
-export class Finder {
+export class Desktop {
   constructor() {
-    if (desktop) throw new Error('There is only one Finder.');
+    if (desktopFolder) throw new Error('Only one Desktop can exist per page.');
     const root = screen();
-    desktop = new Folder(root, {
+    desktopFolder = new Folder(root, {
       slots: () => {
         const a = area(), out = [];
         for (let x = a.x + a.w - 56; x > a.x; x -= 72) for (let y = a.y + 10; y < a.y + a.h - 50; y += 56) out.push([x, y]);
@@ -565,7 +565,7 @@ export class Finder {
     });
   }
 
-  // A TeachText-style document. lines: strings, or { text, href } links.
+  // A plain text document. lines: strings, or { text, href } links.
   textWindow(title, lines) {
     const widest = Math.max(...lines.map((l) => measure(typeof l === 'string' ? l : l.text, 'system')));
     const win = new DesktopWindow(title, [Math.max(260, widest + 70), lines.length * 16 + 85]);
@@ -611,14 +611,14 @@ export class Finder {
 
   // The disk icon, in the top right corner of the desktop.
   disk(label, win) {
-    new Icon(desktop, { label, kind: 'hd', opens: win, corner: 'top' });
+    new Icon(desktopFolder, { label, kind: 'hd', opens: win, corner: 'top' });
     arrangeDesktop();
   }
 
   // The Trash, in the bottom right corner, holding `items` to begin with.
   trash(items) {
     const win = this.folderWindow('Trash', items, [240, 130]);
-    const ic = new Icon(desktop, { label: 'Trash', kind: 'trash', opens: win, corner: 'bottom' });
+    const ic = new Icon(desktopFolder, { label: 'Trash', kind: 'trash', opens: win, corner: 'bottom' });
     win.onChange = () => ic.setKind(win.folder.items.length ? 'trashFull' : 'trash');
     win.onChange();
     arrangeDesktop();
@@ -627,8 +627,8 @@ export class Finder {
 
 // Parks corner icons and pulls the rest back on screen.
 function arrangeDesktop() {
-  const a = area(), b = desktop.bounds();
-  for (const ic of desktop.items) {
+  const a = area(), b = desktopFolder.bounds();
+  for (const ic of desktopFolder.items) {
     if (ic.corner === 'top') ic.moveTo(a.x + a.w - 56, a.y + 10);
     else if (ic.corner === 'bottom') ic.moveTo(a.x + a.w - 56, a.y + a.h - 58);
     else {

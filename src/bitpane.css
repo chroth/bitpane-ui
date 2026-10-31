@@ -1,4 +1,4 @@
-/* System 6-style 1-bit desktop. One CSS pixel = one Mac pixel; the whole
+/* Classic 1-bit desktop. One CSS pixel = one screen pixel; the whole
    screen is scaled up by an integer factor in screen.js. */
 
 :root {
@@ -220,7 +220,7 @@ canvas.px, img.px {
   .win .grow::before, .win .arrow::before { inset: calc(-6px / var(--scale, 1)); }
 }
 
-/* TeachText-style document */
+/* Plain text document */
 .doc { padding: 4px 6px; }
 .doc .line { height: 16px; }
 .doc a { display: inline-block; position: relative; }

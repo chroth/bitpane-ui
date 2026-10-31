@@ -1,5 +1,5 @@
-// The Mac screen: a 1-bit display scaled up by a whole number to fill the
-// browser window. Everything outside this module works in Mac pixels and
+// The screen: a 1-bit display scaled up by a whole number to fill the
+// browser window. Everything outside this module works in screen pixels and
 // never deals with the scale factor, device pixels, rotation or the iOS
 // safe area (the edges hidden by a camera cutout or home bar).
 
@@ -69,7 +69,7 @@ function fit() {
   for (const fn of resizeListeners) fn();
 }
 
-// The part of the screen that is actually visible, in Mac pixels.
+// The part of the screen that is actually visible, in screen pixels.
 export function area() {
   return usable;
 }
@@ -80,12 +80,12 @@ export function onResize(fn) {
   return () => resizeListeners.delete(fn);
 }
 
-// Pointer position of an event, in Mac pixels.
+// Pointer position of an event, in screen pixels.
 export function pointer(event) {
   return { x: event.clientX / scale, y: event.clientY / scale };
 }
 
-// Rectangle of an element, in Mac pixels.
+// Rectangle of an element, in screen pixels.
 export function rectOf(e) {
   const r = e.getBoundingClientRect();
   return {
@@ -98,7 +98,7 @@ export function rectOf(e) {
 
 // Follows a pointer drag that started with `event` until release.
 // move(dx, dy, ev) runs once the pointer has moved more than 2 pixels;
-// end(dx, dy, moved, ev) runs on release. Deltas are in Mac pixels.
+// end(dx, dy, moved, ev) runs on release. Deltas are in screen pixels.
 export function track(event, { move, end }) {
   const start = pointer(event);
   let moved = false;
@@ -131,7 +131,7 @@ export function outline(parent = root) {
   return g;
 }
 
-// The Finder's expanding outlines from one rectangle to another. Resolves
+// Expanding zoom outlines from one rectangle to another. Resolves
 // when done; skipped when either end is missing or motion is reduced.
 export function zoomRects(from, to) {
   return new Promise((done) => {

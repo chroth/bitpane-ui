@@ -1,4 +1,4 @@
-// DOM helpers shared by the screen, the Finder and dialogs.
+// DOM helpers shared by the screen, the desktop and dialogs.
 
 import { render } from './font.js';
 

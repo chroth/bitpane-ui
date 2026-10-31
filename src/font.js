@@ -1,4 +1,4 @@
-// Original 1-bit bitmap fonts in the spirit of the classic Mac system fonts.
+// Original 1-bit bitmap fonts in a classic desktop style.
 // Glyph syntax: space-separated rows, "#" = ink, "." = blank, "row*n" repeats
 // a row n times, and a leading "@n" shifts the glyph n rows (negative = up).
 // Row 0 is the cap line; descenders continue below the baseline.
