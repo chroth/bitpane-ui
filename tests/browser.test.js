@@ -404,15 +404,24 @@ describe('controls', () => {
     await close(page);
   });
 
-  test('crash() blocks the screen until Restart', async () => {
+  test('crash() blocks the screen; Restart is a plain link', async () => {
     const page = await open('crash');
     await page.waitForSelector('.dlg');
     const behind = await center(win(page, 'Behind').locator('.tb'));
     assert.equal(await page.evaluate(({ x, y }) => !!document.elementFromPoint(x, y).closest('.modal'), behind), true);
     assert.match(await page.locator('.dlg').innerText(), /ID = 42/);
+    const restart = page.getByRole('link', { name: 'Restart' });
+    assert.equal(await restart.getAttribute('href'), '#restarted');
+    assert.equal(await page.evaluate(() => document.activeElement === t.restart), true);
     await page.keyboard.press('Enter');
-    await page.waitForFunction(() => t.restarted);
-    assert.equal(await page.locator('.dlg').count(), 0);
+    await page.waitForFunction(() => location.hash === '#restarted');
+    await close(page);
+  });
+
+  test('clicking Restart follows its link', async () => {
+    const page = await open('crash');
+    await page.getByRole('link', { name: 'Restart' }).click();
+    await page.waitForFunction(() => location.hash === '#restarted');
     await close(page);
   });
 });

@@ -54,5 +54,5 @@ export function screen(): HTMLDivElement;
 export function area(): Rect;
 export function onResize(callback: () => void): () => void;
 export function bitmapText(text: string, font?: 'system' | 'small', tag?: string): HTMLElement;
-export function crash(id: string | number): Promise<void>;
-export function restart(href: string): void;
+/** System error dialog; Restart is a link to href. Returns the link. */
+export function crash(id: string | number, href: string): HTMLAnchorElement;

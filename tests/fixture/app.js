@@ -58,7 +58,7 @@ const scenes = {
   crash() {
     const notes = new DesktopWindow('Behind', [240, 160]);
     notes.show();
-    crash(42).then(() => { t.restarted = true; });
+    t.restart = crash(42, '#restarted');
   },
 };
 

@@ -53,8 +53,7 @@ Sizes and positions are in screen pixels; the screen is scaled up by a whole num
 - `bitmapText(text, font)`: bitmap text that screen readers can read; `font` is `system` or `small`.
 
 **Screen**
-- `crash(id)`: system error dialog with a bomb; resolves when Restart is pressed.
-- `restart(href)`: blanks the screen, then loads `href`.
+- `crash(id, href)`: system error dialog with a bomb. Restart is a plain link to `href`, drawn as a button; returns the link.
 - `area()`: the visible screen area, clear of the menu bar and phone notches.
 - `onResize(callback)`: called when `area()` changes; returns a function that stops it.
 - `screen()`: the screen element.

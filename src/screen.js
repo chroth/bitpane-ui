@@ -158,12 +158,6 @@ export function zoomRects(from, to) {
   });
 }
 
-// Blanks the screen for a moment, then loads href.
-export function restart(href) {
-  root.classList.add('black');
-  setTimeout(() => location.assign(href), 600);
-}
-
 
 // Internal: reserve space for the optional menu bar, then refit windows/icons.
 export function reserveMenu(height) {

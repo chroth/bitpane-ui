@@ -69,8 +69,6 @@ canvas.px, img.px {
 
 #screen, #screen * { cursor: var(--cursor, default); }
 
-#screen.black { background: #000; }
-#screen.black > * { visibility: hidden; }
 
 #screen button {
   margin: 0;
