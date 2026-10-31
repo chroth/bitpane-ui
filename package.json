@@ -19,6 +19,13 @@
   "sideEffects": [
     "**/*.css"
   ],
+  "scripts": {
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.10",
+    "playwright": "1.63.0"
+  },
   "private": true,
   "license": "MIT",
   "author": "Christofer Roth",

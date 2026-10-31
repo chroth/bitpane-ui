@@ -251,7 +251,7 @@ function compile(font) {
   return Object.assign({}, font, { glyphs: out });
 }
 
-const FONTS = { system: compile(SYSTEM), small: compile(SMALL) };
+export const FONTS = { system: compile(SYSTEM), small: compile(SMALL) };
 
 function glyph(font, ch) {
   return font.glyphs[ch] || font.glyphs['?'];

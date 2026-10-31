@@ -59,6 +59,14 @@ Sizes and positions are in screen pixels; the screen is scaled up by a whole num
 
 Works with mouse, touch and keyboard.
 
+## Tests
+
+```sh
+npm install
+npx playwright install chromium
+npm test
+```
+
 ## License
 
 MIT
