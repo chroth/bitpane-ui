@@ -1,0 +1,39 @@
+{
+  "name": "bitpane-ui",
+  "version": "0.1.0",
+  "description": "1-bit retro desktop UI: windows, icons, dialogs and bitmap fonts",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./src/index.js"
+    },
+    "./style.css": "./src/mac.css"
+  },
+  "files": [
+    "src",
+    "index.d.ts",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "private": true,
+  "license": "MIT",
+  "author": "Christofer Roth",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chroth/bitpane-ui.git"
+  },
+  "keywords": [
+    "1-bit",
+    "retro",
+    "desktop",
+    "ui",
+    "windows",
+    "pixel",
+    "bitmap-font",
+    "dither"
+  ]
+}

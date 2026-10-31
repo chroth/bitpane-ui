@@ -1,0 +1,289 @@
+/* System 6-style 1-bit desktop. One CSS pixel = one Mac pixel; the whole
+   screen is scaled up by an integer factor in screen.js. */
+
+:root {
+  --gray: repeating-conic-gradient(#000 0 25%, #fff 0 50%);
+}
+
+* { box-sizing: border-box; }
+
+html {
+  height: 100%;
+  overflow: hidden;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  background: var(--gray);
+  background-size: 2px 2px;
+}
+
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.safe-probe {
+  position: fixed;
+  left: env(safe-area-inset-left, 0px);
+  right: env(safe-area-inset-right, 0px);
+  top: env(safe-area-inset-top, 0px);
+  bottom: env(safe-area-inset-bottom, 0px);
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+canvas.px, img.px {
+  display: block;
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
+}
+
+#screen {
+  position: fixed;
+  left: 0;
+  top: 0;
+  overflow: hidden;
+  transform-origin: 0 0;
+  background: var(--gray);
+  background-size: 2px 2px;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  font-size: 0;
+  line-height: 0;
+}
+
+#screen, #screen * { cursor: var(--cursor, default); }
+
+#screen.black { background: #000; }
+#screen.black > * { visibility: hidden; }
+
+#screen button {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+}
+
+#screen :focus { outline: none; }
+#screen :focus-visible { outline: 1px dotted #000; outline-offset: 1px; }
+#screen .btn:focus-visible { outline: none; }
+
+.corner { position: absolute; z-index: 3000000; pointer-events: none; }
+.corner.tl { left: 0; top: 0; }
+.corner.tr { right: 0; top: 0; transform: scaleX(-1); }
+.corner.bl { left: 0; bottom: 0; transform: scaleY(-1); }
+.corner.br { right: 0; bottom: 0; transform: scale(-1, -1); }
+
+/* --- Icons --- */
+
+.icon { position: absolute; width: 32px; height: 32px; }
+.icon .img { position: relative; width: 32px; height: 32px; }
+.icon .img canvas { position: absolute; left: 0; top: 0; }
+.icon .img .sel, .icon .img .opened { visibility: hidden; }
+.icon.selected .img .sel { visibility: visible; }
+.icon.open .img .opened { visibility: visible; }
+.icon.open.selected .img .opened { visibility: hidden; }
+
+.icon .lbl {
+  position: absolute;
+  top: 34px;
+  padding: 0 1px;
+  background: #fff;
+}
+.icon.selected .lbl, .icon.hover .lbl { background: #000; }
+.icon.selected .lbl canvas, .icon.hover .lbl canvas { filter: invert(1); }
+.icon.hover .img .sel { visibility: visible; }
+
+/* --- Gray outlines used while dragging and zooming --- */
+
+.ghost { position: absolute; pointer-events: none; z-index: 2000000; }
+.ghost > i { position: absolute; background: var(--gray); background-size: 2px 2px; }
+.ghost > i:nth-child(1) { left: 0; right: 0; top: 0; height: 1px; }
+.ghost > i:nth-child(2) { left: 0; right: 0; bottom: 0; height: 1px; }
+.ghost > i:nth-child(3) { left: 0; top: 0; bottom: 0; width: 1px; }
+.ghost > i:nth-child(4) { right: 0; top: 0; bottom: 0; width: 1px; }
+.ghost > canvas { position: absolute; }
+
+/* --- Windows --- */
+
+.win {
+  position: absolute;
+  background: #fff;
+  border: 1px solid #000;
+  box-shadow: 1px 1px 0 #000;
+}
+
+.win .tb {
+  position: relative;
+  height: 19px;
+  border-bottom: 1px solid #000;
+}
+
+.win.active .tb::before {
+  content: '';
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  top: 3px;
+  height: 11px;
+  background: repeating-linear-gradient(#000 0 1px, #fff 1px 2px);
+}
+
+.win .ttl { position: absolute; top: 1px; padding: 0 6px; overflow: hidden; background: #fff; }
+
+#screen .win .close, #screen .win .zoom {
+  position: absolute;
+  top: 3px;
+  width: 11px;
+  height: 11px;
+  background: #fff;
+  box-shadow: 1px 0 0 #fff, -1px 0 0 #fff;
+  visibility: hidden;
+}
+#screen .win .close { left: 8px; }
+#screen .win .zoom { right: 8px; }
+#screen .win.active .close, #screen .win.active .zoom { visibility: visible; }
+.win .tb button canvas { position: absolute; left: 0; top: 0; }
+.win .tb button canvas + canvas { visibility: hidden; }
+.win .tb button.down canvas + canvas { visibility: visible; }
+
+.win .info {
+  position: relative;
+  height: 19px;
+  border-bottom: 3px double #000;
+}
+.win .info > span { position: absolute; top: 3px; }
+
+.win .content {
+  position: absolute;
+  left: 0;
+  right: 16px;
+  bottom: 16px;
+  overflow: hidden;
+}
+
+.win .vs, .win .hs, .win .grow { position: absolute; background: #fff; }
+.win .vs { right: 0; bottom: 15px; width: 16px; border-left: 1px solid #000; border-bottom: 1px solid #000; }
+.win .hs { left: 0; bottom: 0; right: 15px; height: 16px; border-top: 1px solid #000; border-right: 1px solid #000; }
+.win .grow { right: 0; bottom: 0; width: 15px; height: 15px; }
+
+.win .vs > *, .win .hs > *, .win .grow > * { visibility: hidden; }
+.win.active .vs > .arrow, .win.active .hs > .arrow, .win.active .grow > * { visibility: visible; }
+
+.win .arrow { position: absolute; }
+.win .arrow .pressed { position: absolute; left: 0; top: 0; visibility: hidden; }
+.win .arrow.down .pressed { visibility: visible; }
+.win .vs .arrow { left: 0; width: 15px; height: 16px; }
+.win .vs .arrow.a1 { top: 0; border-bottom: 1px solid #000; }
+.win .vs .arrow.a2 { bottom: 0; border-top: 1px solid #000; }
+.win .hs .arrow { top: 0; width: 16px; height: 15px; }
+.win .hs .arrow.a1 { left: 0; border-right: 1px solid #000; }
+.win .hs .arrow.a2 { right: 0; border-left: 1px solid #000; }
+
+.win .track { position: absolute; background: var(--gray); background-size: 2px 2px; }
+.win .vs .track { left: 0; right: 0; top: 16px; bottom: 16px; }
+.win .hs .track { top: 0; bottom: 0; left: 16px; right: 16px; }
+.win.active.sv .vs .track, .win.active.sh .hs .track,
+.win.active.sv .vs .thumb, .win.active.sh .hs .thumb { visibility: visible; }
+
+.win .thumb { position: absolute; background: #fff; }
+.win .vs .thumb { left: 0; width: 15px; height: 16px; border-top: 1px solid #000; border-bottom: 1px solid #000; }
+.win .hs .thumb { top: 0; height: 15px; width: 16px; border-left: 1px solid #000; border-right: 1px solid #000; }
+
+/* Touch screens: invisible touch areas of about 40 CSS pixels around the
+   small controls, whatever the screen scale. The title bar sits above the
+   content so the close and zoom areas can reach down into it. */
+@media (pointer: coarse) {
+  .win .tb { z-index: 2; }
+  .win .tb button::before, .win .grow::before, .win .arrow::before {
+    content: '';
+    position: absolute;
+    inset: calc(-14px / var(--scale, 1));
+  }
+  .win .grow::before, .win .arrow::before { inset: calc(-6px / var(--scale, 1)); }
+}
+
+/* TeachText-style document */
+.doc { padding: 4px 6px; }
+.doc .line { height: 16px; }
+.doc a { display: inline-block; position: relative; }
+.doc a::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 13px;
+  height: 1px;
+  background: #000;
+}
+
+/* --- Modal dialogs --- */
+
+.modal { position: absolute; inset: 0; z-index: 1000000; }
+
+.dlg {
+  position: absolute;
+  background: #fff;
+  border: 2px solid #000;
+  box-shadow: 0 0 0 1px #fff, 0 0 0 2px #000;
+}
+.dlg > * { position: absolute; margin: 0; }
+
+.btn { position: absolute; }
+.btn canvas { position: absolute; left: 0; top: 0; }
+.btn .on { visibility: hidden; }
+.btn.down .on { visibility: visible; }
+
+
+/* Optional application menus. No bar is added until menuBar() is called. */
+.menu-bar {
+  position: absolute;
+  z-index: 900000;
+  height: 22px;
+  display: flex;
+  background: #fff;
+  border-bottom: 1px solid #000;
+}
+.menu-group { position: relative; }
+#screen .menu-group > button { height: 21px; padding: 2px 10px 3px; }
+#screen .menu-group > button[aria-expanded="true"],
+#screen .menu-popup button:focus { background: #000; }
+.menu-group > button[aria-expanded="true"] canvas,
+.menu-popup button:focus canvas { filter: invert(1); }
+.menu-popup {
+  position: absolute;
+  top: 21px;
+  min-width: 140px;
+  max-width: calc(100vw / var(--scale, 1));
+  max-height: calc(100dvh / var(--scale, 1) - 22px);
+  overflow: auto;
+  padding: 3px 0;
+  background: #fff;
+  border: 1px solid #000;
+  box-shadow: 1px 1px #000;
+}
+#screen .menu-popup button {
+  display: block;
+  width: 100%;
+  padding: 3px 14px;
+  text-align: left;
+}
+.menu-popup button:disabled { opacity: .45; }
+.menu-separator { border-top: 1px dotted #000; margin: 3px 0; }
