@@ -336,6 +336,63 @@ describe('desktop', () => {
     await close(page);
   });
 
+  test('applications are links: a double-click or Enter launches, a click selects', async () => {
+    let page = await open('apps');
+    await openIcon(page, 'HD');
+    const game = icon(page, 'Game');
+    assert.equal(await game.evaluate((e) => e.tagName), 'A');
+    assert.equal(await game.getAttribute('href'), '#launched');
+    await game.click();
+    await page.waitForTimeout(600);
+    assert.equal(await page.evaluate(() => location.hash), '#apps', 'a single click navigated');
+    assert.match(await game.getAttribute('class'), /selected/);
+    await game.dblclick();
+    await page.waitForFunction(() => location.hash === '#launched');
+    await close(page);
+
+    page = await open('apps');
+    await openIcon(page, 'HD');
+    await icon(page, 'Tool').focus();
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => location.hash === '#tool');
+    await close(page);
+  });
+
+  test('modified clicks on applications are left to the browser', async () => {
+    const page = await open('apps');
+    await openIcon(page, 'HD');
+    const [tab] = await Promise.all([page.context().waitForEvent('page'), icon(page, 'Game').click({ modifiers: ['Control'] })]);
+    await tab.waitForLoadState();
+    assert.match(tab.url(), /#launched$/);
+    assert.equal(await page.evaluate(() => location.hash), '#apps');
+    await tab.close();
+    await close(page);
+  });
+
+  test('custom icon art is drawn, and bad art or items are rejected', async () => {
+    const page = await open('apps');
+    await openIcon(page, 'HD');
+    // The 4x4 art is centred in the 32x32 icon: pixel (15, 15) is ink; corner (14, 14) is outside the shape.
+    const pixels = await icon(page, 'Game').locator('.img canvas').first().evaluate((c) => {
+      const ctx = c.getContext('2d');
+      return [ctx.getImageData(15, 15, 1, 1).data.join(), ctx.getImageData(14, 14, 1, 1).data[3]];
+    });
+    assert.deepEqual(pixels, ['0,0,0,255', 0]);
+    const errors = await page.evaluate(() => [
+      [{ label: 'X', kind: 'application', href: '/', art: ['2'] }],
+      [{ label: 'X', kind: 'application', href: '/', art: Array(33).fill('1') }],
+      [{ label: 'X', kind: 'application' }],
+      [{ label: 'X', kind: 'document' }],
+    ].map((items) => { try { t.desktop.folderWindow('X', items); return 'no error'; } catch (e) { return e.message; } }));
+    assert.deepEqual(errors, [
+      'Icon art must be up to 32 rows of up to 32 "0" or "1" characters',
+      'Icon art must be up to 32 rows of up to 32 "0" or "1" characters',
+      'An application needs an href',
+      'A document needs a window to open',
+    ]);
+    await close(page);
+  });
+
   test('picture documents load their image only when first opened', async () => {
     const before = pixelRequests;
     const page = await open('desktop');

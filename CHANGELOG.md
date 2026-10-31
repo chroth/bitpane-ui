@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.0
+- `application` items: icons that are plain links (`href`). A click selects, a double-click or Enter zooms out and launches, modified clicks open a new tab.
+- Custom icon art for any item: `art`, rows of `0`/`1`.
+- Items without a window (or applications without an `href`) are rejected with a clear error.
+
 ## 0.5.0
 - The code is split into layers: screen, controls, windows, documents, Finder.
 - **Breaking:** `crash()` is replaced by `alert({ icon, message, buttons })`.

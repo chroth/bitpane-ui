@@ -15,15 +15,15 @@
 import { icon } from './bitmap.js';
 import { measure } from './font.js';
 import { el, place, bitmapText, nearest } from './dom.js';
-import { screen, area, onResize, pointer, rectOf, track, outline } from './screen.js';
+import { screen, area, onResize, pointer, rectOf, track, outline, zoomRects } from './screen.js';
 import { DesktopWindow, windowAt } from './windows.js';
 
 // The kinds of icon a folder can hold; the disk and Trash icons are the
-// Finder's own.
-const ITEM_KINDS = ['document', 'picture', 'folder'];
+// Finder's own. Applications launch a URL; the others open a window.
+const ITEM_KINDS = ['document', 'picture', 'folder', 'application'];
 // Size of an item on disk in K when it doesn't give its own `kb`. Folders,
 // the disk and the Trash add up whatever they contain.
-const DEFAULT_K = { document: 1, picture: 4 };
+const DEFAULT_K = { document: 1, picture: 4, application: 32 };
 const TEXT = {
   items: (n) => n + (n === 1 ? ' item' : ' items'),
   used: (k) => k + ' in disk',
@@ -56,8 +56,11 @@ function clampTo(b, x, y) {
   return { x: Math.max(b.x0, Math.min(b.x1, x)), y: Math.max(b.y0, Math.min(b.y1, y)) };
 }
 
-function checkItem({ kind }) {
+function checkItem({ kind, href, opens }) {
   if (!ITEM_KINDS.includes(kind)) throw new Error(`Unknown item kind "${kind}"`);
+  if (kind === 'application' ? typeof href !== 'string' : !opens) {
+    throw new Error(kind === 'application' ? 'An application needs an href' : `A ${kind} needs a window to open`);
+  }
 }
 
 // --- Folders: the desktop and the inside of folder windows ---
@@ -111,20 +114,37 @@ class Icon {
   // Icons that open a folder window are also drop targets. corner: 'top' or
   // 'bottom' parks the icon at that end of the desktop's right edge until
   // it's dragged elsewhere; such icons (the disk and the Trash) can never
-  // leave the desktop. kb: the item's own size on disk in K.
-  constructor(folder, { label, kind, opens, corner, kb }) {
-    const art = icon(kind); // throws on an unknown kind, before any side effects
+  // leave the desktop. kb: the item's own size on disk in K. href: makes the
+  // icon a link that a double-click or Enter launches. art: custom icon art.
+  constructor(folder, { label, kind, opens, corner, kb, href, art: custom }) {
+    const art = icon(custom ?? kind); // throws on bad art, before any side effects
     this.label = label;
     this.opens = opens;
+    this.custom = custom;
     this.ownKb = kb ?? (Object.hasOwn(DEFAULT_K, kind) ? DEFAULT_K[kind] : 0);
     this.corner = corner;
     this.pinned = !!corner;
     if (opens) opens.opener = this;
-    this.el = el('div', 'icon');
+    this.el = el(href === undefined ? 'div' : 'a', 'icon');
     iconOf.set(this.el, this);
     this.el.tabIndex = 0;
-    this.el.setAttribute('role', 'button');
     this.el.setAttribute('aria-label', label);
+    if (href === undefined) {
+      this.el.setAttribute('role', 'button');
+    } else {
+      // A plain link underneath: modified and middle clicks open a new tab as
+      // usual; a plain click only selects, and a double-click launches.
+      this.el.href = href;
+      this.el.draggable = false;
+      this.el.addEventListener('click', (e) => {
+        if (e.detail === 0) {
+          e.preventDefault();
+          this.open();
+        } else if (e.button === 0 && !(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)) {
+          e.preventDefault();
+        }
+      });
+    }
     this.img = el('div', 'img', this.el);
     this.setKind(kind, art);
     const lbl = bitmapText(label, 'small');
@@ -144,7 +164,7 @@ class Icon {
     folder.add(this);
   }
 
-  setKind(kind, art = icon(kind)) {
+  setKind(kind, art = icon(this.custom ?? kind)) {
     this.kind = kind;
     this.el.dataset.kind = kind;
     art.opened.classList.add('opened');
@@ -162,8 +182,14 @@ class Icon {
     return this.ownKb + (this.opens && this.opens.folder ? this.opens.folder.kb() : 0);
   }
 
-  open() {
-    if (this.opens) this.opens.show();
+  // Opens the icon's window, or launches its link: the outline zooms out to
+  // the whole screen first.
+  async open() {
+    if (this.opens) return this.opens.show();
+    if (this.el.href) {
+      await zoomRects(this.rect(), area());
+      location.assign(this.el.href);
+    }
   }
 
   // --- As the opener of its window ---
@@ -226,7 +252,7 @@ class Icon {
       move: (dx, dy, ev) => {
         if (!ghost) {
           ghost = el('div', 'ghost', screen());
-          ghost.appendChild(icon(this.kind).outline);
+          ghost.appendChild(icon(this.custom ?? this.kind).outline);
           outline(ghost).set({ x: Math.floor((32 - this.labelW) / 2), y: 34, w: this.labelW, h: 12 });
         }
         place(ghost, { x: start.x + dx, y: start.y + dy, w: 32, h: 32 });

@@ -143,6 +143,15 @@ function checker(bmp) {
 // --- Icons (32x32) ---
 
 const ICONS = {
+  application(b) {
+    b.rect(3, 4, 28, 27);
+    b.hline(4, 27, 9);
+    for (const y of [6, 8]) b.hline(5, 26, y);
+    b.line(15, 12, 21, 18);
+    b.line(21, 18, 15, 24);
+    b.line(15, 24, 9, 18);
+    b.line(9, 18, 15, 12);
+  },
   hd(b) {
     b.rect(1, 11, 29, 22);
     b.hline(2, 28, 19);
@@ -212,20 +221,35 @@ const ICONS = {
   },
 };
 
-const iconCache = new Map();
-function iconBitmaps(name) {
-  if (!Object.hasOwn(ICONS, name)) throw new Error(`Unknown icon kind "${name}"`);
-  if (!iconCache.has(name)) {
-    const ink = new Bitmap(32, 32);
-    ICONS[name](ink);
-    iconCache.set(name, { ink, mask: ink.mask() });
+// Custom art: up to 32 rows of up to 32 "0" or "1" characters, centred.
+function fromRows(rows) {
+  const w = Math.max(0, ...rows.map((r) => r.length));
+  if (!rows.length || rows.length > 32 || w > 32 || rows.some((r) => !/^[01]*$/.test(r))) {
+    throw new Error('Icon art must be up to 32 rows of up to 32 "0" or "1" characters');
   }
-  return iconCache.get(name);
+  const ink = new Bitmap(32, 32);
+  const x0 = Math.floor((32 - w) / 2), y0 = Math.floor((32 - rows.length) / 2);
+  rows.forEach((row, y) => [...row].forEach((c, x) => c === '1' && ink.set(x0 + x, y0 + y)));
+  return ink;
+}
+
+const iconCache = new Map();
+// art: a built-in icon name, or custom rows (see fromRows).
+function iconBitmaps(art) {
+  const custom = Array.isArray(art);
+  if (!custom && !Object.hasOwn(ICONS, art)) throw new Error(`Unknown icon kind "${art}"`);
+  const key = custom ? art.join('\n') : art;
+  if (!iconCache.has(key)) {
+    let ink = custom ? fromRows(art) : new Bitmap(32, 32);
+    if (!custom) ICONS[art](ink);
+    iconCache.set(key, { ink, mask: ink.mask() });
+  }
+  return iconCache.get(key);
 }
 
 // Returns { normal, selected, outline } canvases for an icon.
-export function icon(name) {
-  const { ink, mask } = iconBitmaps(name);
+export function icon(art) {
+  const { ink, mask } = iconBitmaps(art);
   return {
     normal: paint(32, 32, [[mask, '#fff'], [ink, '#000']]),
     selected: paint(32, 32, [[mask, '#000'], [ink, '#fff']]),

@@ -32,6 +32,18 @@ const scenes = {
     Object.assign(t, { desktop, hd, projects, readme, photo });
   },
 
+  // Applications: icons that launch a link, one with custom art.
+  apps() {
+    const desktop = new Desktop();
+    const art = ['0110', '1111', '1111', '0110'];
+    const apps = desktop.folderWindow('Apps', [
+      { label: 'Game', kind: 'application', href: '#launched', art },
+      { label: 'Tool', kind: 'application', href: '#tool' },
+    ]);
+    desktop.disk('HD', apps);
+    Object.assign(t, { desktop, apps });
+  },
+
   // A desktop in another language.
   swedish() {
     const desktop = new Desktop({

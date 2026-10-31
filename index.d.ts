@@ -1,7 +1,9 @@
 /** All coordinates and sizes are logical screen pixels, before integer scaling. */
 export interface Rect { x: number; y: number; w: number; h: number }
 export type Size = [width: number, height: number];
-export type IconArt = 'document' | 'picture' | 'folder' | 'hd' | 'trash' | 'trashFull' | 'bomb';
+export type IconArt = 'document' | 'picture' | 'folder' | 'application' | 'hd' | 'trash' | 'trashFull' | 'bomb';
+/** Custom icon art: up to 32 rows of up to 32 "0" or "1" characters, centred. */
+export type IconRows = string[];
 
 // --- Screen ---
 
@@ -72,13 +74,17 @@ export function pictureWindow(title: string, picture: {
 
 // --- Finder ---
 
-export interface IconItem {
+interface ItemBase {
   label: string;
-  kind: 'document' | 'picture' | 'folder';
-  opens: DesktopWindow;
-  /** Size on disk in K. Defaults: document 1, picture 4; folders add their contents. */
+  /** Size on disk in K. Defaults: document 1, picture 4, application 32; folders add their contents. */
   kb?: number;
+  /** Custom icon art instead of the kind's built-in picture. */
+  art?: IconRows;
 }
+export type IconItem =
+  | (ItemBase & { kind: 'document' | 'picture' | 'folder'; opens: DesktopWindow })
+  /** A link: a click selects, a double-click or Enter launches, modified clicks open a new tab. */
+  | (ItemBase & { kind: 'application'; href: string });
 /** Desktop icons, folders, the disk and the Trash; one Desktop per page. */
 export class Desktop {
   constructor(options?: {
