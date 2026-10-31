@@ -33,6 +33,9 @@ open();
 
 Append DOM elements or a canvas to `window.content` to provide your own content.
 Use `Desktop` for disk and Trash icons, folders, or text/picture documents.
+Folder windows show their item count plus disk-wide used and available space:
+give items a size with `kb` and the disk a `capacity` (both in K) to make the
+numbers match your files.
 Windows and menus can also be used without a `Desktop`. Nothing is mounted on import.
 See `index.d.ts` for the supported API; modules below `src/` are internal.
 `bitmapText()` provides accessible text using the same bitmap renderer.

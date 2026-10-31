@@ -22,10 +22,11 @@ const TITLE_H = 19;
 const INFO_H = 19;
 const MIN_W = 120;
 const MIN_H = 90;
-const FREE_SPACE = '19,456K available';
-// How much each kind of item adds to "…K in folder", in K. Folders add
-// whatever they contain.
-const ITEM_K = { document: 2, picture: 4 };
+// Size of an item on disk in K when it doesn't give its own `kb`. Folders,
+// the disk and the Trash add up whatever they contain.
+const DEFAULT_K = { document: 1, picture: 4 };
+// A 20 MB hard disk, unless disk() is given another capacity in K.
+let diskCapacity = 20480;
 
 let desktopFolder = null;
 let selected = null;
@@ -108,10 +109,12 @@ class Icon {
   // opens: the Window a double-click opens. Icons that open a folder window
   // are also drop targets. corner: 'top' or 'bottom' parks the icon at that
   // end of the desktop's right edge until it's dragged elsewhere; such icons
-  // (the disk and the Trash) can never leave the desktop.
-  constructor(folder, { label, kind, opens, corner }) {
+  // (the disk and the Trash) can never leave the desktop. kb: the item's
+  // own size on disk in K.
+  constructor(folder, { label, kind, opens, corner, kb }) {
     this.label = label;
     this.opens = opens;
+    this.ownKb = kb ?? DEFAULT_K[kind] ?? 0;
     this.corner = corner;
     this.pinned = !!corner;
     if (opens) opens.opener = this;
@@ -154,7 +157,7 @@ class Icon {
   }
 
   kb() {
-    return (ITEM_K[this.kind] || 0) + (this.opens && this.opens.folder ? this.opens.folder.kb() : 0);
+    return this.ownKb + (this.opens && this.opens.folder ? this.opens.folder.kb() : 0);
   }
 
   open() {
@@ -528,14 +531,16 @@ class FolderWindow extends DesktopWindow {
     if (this.onChange) this.onChange();
   }
 
+  // Like the classic Finder: this window's item count, then totals for the
+  // whole disk. Everything on the desktop, the Trash included, is on the disk.
   updateInfo() {
     const n = this.folder.items.length;
-    const kind = this.opener && this.opener.kind;
-    const where = kind === 'hd' ? 'disk' : kind && kind.startsWith('trash') ? 'Trash' : 'folder';
+    const used = desktopFolder.kb();
+    const k = (v) => Math.max(0, v).toLocaleString('en-US') + 'K';
     this.setInfo([
       n + (n === 1 ? ' item' : ' items'),
-      this.folder.kb() + 'K in ' + where,
-      where === 'Trash' ? '' : FREE_SPACE,
+      k(used) + ' in disk',
+      k(diskCapacity - used) + ' available',
     ]);
   }
 }
@@ -609,8 +614,10 @@ export class Desktop {
     return win;
   }
 
-  // The disk icon, in the top right corner of the desktop.
-  disk(label, win) {
+  // The disk icon, in the top right corner of the desktop. capacity: the
+  // disk's size in K, which the windows' "K available" counts down from.
+  disk(label, win, { capacity } = {}) {
+    if (capacity) diskCapacity = capacity;
     new Icon(desktopFolder, { label, kind: 'hd', opens: win, corner: 'top' });
     arrangeDesktop();
   }

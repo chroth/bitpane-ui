@@ -6,6 +6,8 @@ export interface IconItem {
   label: string;
   kind: 'document' | 'picture' | 'folder' | 'hd' | 'trash' | 'trashFull';
   opens: DesktopWindow;
+  /** Size on disk in K. Defaults: document 1, picture 4; folders add their contents. */
+  kb?: number;
 }
 
 /** A draggable, resizable window. Append your own DOM or canvas to content. */
@@ -30,7 +32,8 @@ export class Desktop {
     src: string; width: number; height: number; alt: string;
   }): DesktopWindow;
   folderWindow(title: string, items: IconItem[], size?: Size): DesktopWindow;
-  disk(label: string, window: DesktopWindow): void;
+  /** capacity: disk size in K (default 20480). Windows show disk-wide used and available space. */
+  disk(label: string, window: DesktopWindow, options?: { capacity?: number }): void;
   trash(items: IconItem[]): void;
 }
 
