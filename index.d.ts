@@ -5,7 +5,7 @@ export type IconArt = 'document' | 'picture' | 'folder' | 'application' | 'hd' |
 /** Custom icon art: up to 32 rows of up to 32 "0" or "1" characters, centred. */
 export type IconRows = string[];
 /** Opt in to link schemes beyond http:, https:, mailto: and relative URLs, e.g. ['javascript:']. */
-export interface UnsafeUrlOptions { unsafeAllowSchemes?: string[] }
+export interface DangerousUrlOptions { dangerouslyAllowSchemes?: string[] }
 
 // --- Screen ---
 
@@ -28,7 +28,7 @@ export function pushButton(
 /** A push button that is a plain link underneath. Only safe URLs unless options allow more. */
 export function linkButton(
   parent: HTMLElement, label: string, rect: Rect,
-  href: string, isDefault?: boolean, options?: UnsafeUrlOptions
+  href: string, isDefault?: boolean, options?: DangerousUrlOptions
 ): HTMLAnchorElement & Pressable;
 export interface MenuItem { label: string; action: () => void; disabled?: boolean }
 export interface Menu { label: string; items: (MenuItem | null)[] }
@@ -36,7 +36,7 @@ export interface Menu { label: string; items: (MenuItem | null)[] }
 export function menuBar(menus: Menu[], options?: { label?: string }): () => void;
 export type AlertButton = { label: string; href: string } | { label: string; action?: () => void };
 /** Modal alert. The last button is the default; action buttons close the alert first. */
-export function alert(options: UnsafeUrlOptions & {
+export function alert(options: DangerousUrlOptions & {
   icon?: IconArt; message: string | string[]; buttons: AlertButton[];
 }): { buttons: (HTMLElement & Pressable)[]; close(): void };
 
@@ -73,7 +73,7 @@ export class DesktopWindow {
   layout(): void;
 }
 export type TextLine = string | { text: string; href: string };
-export function textWindow(title: string, lines: TextLine[], options?: WindowOptions & UnsafeUrlOptions): DesktopWindow;
+export function textWindow(title: string, lines: TextLine[], options?: WindowOptions & DangerousUrlOptions): DesktopWindow;
 export function pictureWindow(title: string, picture: {
   src: string; width: number; height: number; alt: string;
 }, options?: WindowOptions): DesktopWindow;
@@ -90,7 +90,7 @@ interface ItemBase {
 export type IconItem =
   | (ItemBase & { kind: 'document' | 'picture' | 'folder'; opens: DesktopWindow })
   /** A link: a click selects, a double-click or Enter launches, modified clicks open a new tab. */
-  | (ItemBase & UnsafeUrlOptions & { kind: 'application'; href: string });
+  | (ItemBase & DangerousUrlOptions & { kind: 'application'; href: string });
 /** Desktop icons, folders, the disk and the Trash; one Desktop per page. */
 export class Desktop {
   constructor(options?: {

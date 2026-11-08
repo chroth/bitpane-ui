@@ -17,13 +17,13 @@ const PAD = 4; // the dialog's double border
 // is the default: Return, Enter, Space and Escape press it. Returns
 // { buttons, close }.
 export function alert(options) {
-  const { icon, message, buttons, unsafeAllowSchemes } = check.object(options, 'alert options');
+  const { icon, message, buttons, dangerouslyAllowSchemes } = check.object(options, 'alert options');
   const lines = typeof message === 'string' ? [message] : check.list(message, 'Message', { min: 1, max: 20 });
   lines.forEach((l) => check.text(l, 'Message line'));
   check.list(buttons, 'Buttons', { min: 1, max: 4 });
   for (const b of buttons) {
     check.object(b, 'A button');
-    if (b.href !== undefined) check.url(b.href, 'Button href', unsafeAllowSchemes);
+    if (b.href !== undefined) check.url(b.href, 'Button href', dangerouslyAllowSchemes);
     else if (b.action !== undefined) check.fn(b.action, 'Button action');
   }
   const textX = icon ? 62 : 16;
@@ -67,7 +67,7 @@ export function alert(options) {
     const isDefault = i === buttons.length - 1;
     x += widths[i] + 12;
     return b.href !== undefined
-      ? linkButton(box, b.label, rect, b.href, isDefault && buttons.length > 1, { unsafeAllowSchemes })
+      ? linkButton(box, b.label, rect, b.href, isDefault && buttons.length > 1, { dangerouslyAllowSchemes })
       : pushButton(box, b.label, rect, isDefault && buttons.length > 1, () => { close(); b.action?.(); });
   });
 

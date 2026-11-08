@@ -529,17 +529,17 @@ describe('secure by design', () => {
       const allow = ['javascript:'];
       const attempt = (f) => { try { f(); return 'allowed'; } catch (e) { return e.message; } };
       const r = {};
-      r.textWindow = [attempt(() => t.api.textWindow('X', [{ text: 'x', href: bad }])), attempt(() => t.api.textWindow('X', [{ text: 'x', href: bad }], { unsafeAllowSchemes: allow }))];
+      r.textWindow = [attempt(() => t.api.textWindow('X', [{ text: 'x', href: bad }])), attempt(() => t.api.textWindow('X', [{ text: 'x', href: bad }], { dangerouslyAllowSchemes: allow }))];
       const button = (opts) => attempt(() => t.api.linkButton(document.body, 'X', { x: 0, y: 0, w: 60, h: 20 }, bad, false, opts).remove());
-      r.linkButton = [button(), button({ unsafeAllowSchemes: allow })];
+      r.linkButton = [button(), button({ dangerouslyAllowSchemes: allow })];
       r.alert = [attempt(() => t.api.alert({ message: 'x', buttons: [{ label: 'Go', href: bad }] }))];
       r.alertLeftovers = document.querySelectorAll('.modal, [inert]').length;
-      r.alert.push(attempt(() => t.api.alert({ message: 'x', buttons: [{ label: 'Go', href: bad }], unsafeAllowSchemes: allow }).close()));
+      r.alert.push(attempt(() => t.api.alert({ message: 'x', buttons: [{ label: 'Go', href: bad }], dangerouslyAllowSchemes: allow }).close()));
       const app = (extra) => attempt(() => t.desktop.folderWindow('X', [{ label: 'X', kind: 'application', href: bad, ...extra }]));
-      r.application = [app(), app({ unsafeAllowSchemes: allow })];
+      r.application = [app(), app({ dangerouslyAllowSchemes: allow })];
       return r;
     });
-    const refused = 'uses the unsafe URL scheme "javascript:"; list it in unsafeAllowSchemes to allow it on purpose';
+    const refused = 'uses the unsafe URL scheme "javascript:"; list it in dangerouslyAllowSchemes to allow it on purpose';
     assert.deepEqual(results, {
       textWindow: [`Link href ${refused}`, 'allowed'],
       linkButton: [`Link button href ${refused}`, 'allowed'],

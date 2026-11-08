@@ -58,12 +58,12 @@ function clampTo(b, x, y) {
 }
 
 function checkItem(item) {
-  const { label, kind, href, opens, kb, unsafeAllowSchemes } = check.object(item, 'An item');
+  const { label, kind, href, opens, kb, dangerouslyAllowSchemes } = check.object(item, 'An item');
   check.text(label, 'Item label', { empty: false });
   if (!ITEM_KINDS.includes(kind)) throw new Error(`Unknown item kind "${kind}"`);
   if (kind === 'application') {
     if (href === undefined) throw new Error('An application needs an href');
-    check.url(href, 'Application href', unsafeAllowSchemes);
+    check.url(href, 'Application href', dangerouslyAllowSchemes);
   } else if (!(opens instanceof DesktopWindow)) {
     throw new Error(`A ${kind} needs a window to open`);
   }

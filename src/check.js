@@ -58,14 +58,14 @@ export function rect(value, what) {
 
 // Links accept http(s), mailto and relative URLs. Any other scheme, such as
 // javascript: or data:, throws unless this call lists it in
-// unsafeAllowSchemes on purpose. The URL is parsed the way the browser will
-// parse it, so letter case, whitespace and control characters cannot
+// dangerouslyAllowSchemes on purpose. The URL is parsed the way the browser
+// will parse it, so letter case, whitespace and control characters cannot
 // disguise a scheme.
-export function url(href, what, unsafeAllowSchemes = []) {
+export function url(href, what, dangerouslyAllowSchemes = []) {
   text(href, what);
-  list(unsafeAllowSchemes, 'unsafeAllowSchemes').forEach((s) => {
+  list(dangerouslyAllowSchemes, 'dangerouslyAllowSchemes').forEach((s) => {
     if (typeof s !== 'string' || !/^[a-z][a-z0-9+.-]*:$/.test(s)) {
-      throw new TypeError('unsafeAllowSchemes entries must be lowercase schemes such as "javascript:"');
+      throw new TypeError('dangerouslyAllowSchemes entries must be lowercase schemes such as "javascript:"');
     }
   });
   let scheme;
@@ -74,8 +74,8 @@ export function url(href, what, unsafeAllowSchemes = []) {
   } catch {
     throw new TypeError(`${what} is not a valid URL`);
   }
-  if (!SAFE_SCHEMES.includes(scheme) && !unsafeAllowSchemes.includes(scheme)) {
-    throw new Error(`${what} uses the unsafe URL scheme "${scheme}"; list it in unsafeAllowSchemes to allow it on purpose`);
+  if (!SAFE_SCHEMES.includes(scheme) && !dangerouslyAllowSchemes.includes(scheme)) {
+    throw new Error(`${what} uses the unsafe URL scheme "${scheme}"; list it in dangerouslyAllowSchemes to allow it on purpose`);
   }
   return href;
 }

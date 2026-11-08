@@ -52,9 +52,9 @@ export function pushButton(parent, label, rect, isDefault, onPress) {
 
 // A push button that is a plain link underneath: the browser follows href
 // on click, middle-click or Enter, exactly as for any other link. Only safe
-// URLs unless unsafeAllowSchemes says otherwise (see check.url).
-export function linkButton(parent, label, rect, href, isDefault = false, { unsafeAllowSchemes } = {}) {
-  check.url(href, 'Link button href', unsafeAllowSchemes);
+// URLs unless dangerouslyAllowSchemes says otherwise (see check.url).
+export function linkButton(parent, label, rect, href, isDefault = false, { dangerouslyAllowSchemes } = {}) {
+  check.url(href, 'Link button href', dangerouslyAllowSchemes);
   const a = el('a', 'btn', parent);
   a.href = href;
   dress(a, label, rect, isDefault);

@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.9.0
+- **Breaking:** the opt-in for other link schemes is renamed `dangerouslyAllowSchemes` (was `unsafeAllowSchemes`), so the call itself reads as a warning.
+
 ## 0.8.0
 - **Breaking:** links are safe by default. `textWindow` links, `linkButton`, alert link buttons and application items accept only `http:`, `https:`, `mailto:` and relative URLs; other schemes throw unless the call passes `unsafeAllowSchemes`.
 - **Breaking:** every public function checks its input (text, sizes, positions, callbacks) and throws a clear error before changing anything.

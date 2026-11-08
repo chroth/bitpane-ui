@@ -25,11 +25,11 @@ test('links reject other schemes, however disguised', () => {
   }
 });
 
-test('unsafeAllowSchemes allows exactly the listed schemes', () => {
+test('dangerouslyAllowSchemes allows exactly the listed schemes', () => {
   assert.equal(check.url('javascript:void 0', 'href', ['javascript:']), 'javascript:void 0');
   assert.throws(() => check.url('data:,x', 'href', ['javascript:']), /unsafe URL scheme "data:"/);
   for (const bad of ['JavaScript:', 'javascript', 7, 'java script:']) {
-    assert.throws(() => check.url('/x', 'href', [bad]), /unsafeAllowSchemes entries/);
+    assert.throws(() => check.url('/x', 'href', [bad]), /dangerouslyAllowSchemes entries/);
   }
   assert.throws(() => check.url('/x', 'href', 'javascript:'), /must be an array/);
 });

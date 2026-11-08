@@ -8,14 +8,14 @@ import * as check from './check.js';
 
 // A text document sized to fit its lines: strings, or { text, href } links.
 // Links open in a new tab without referrer or opener, and only safe URLs
-// are accepted unless options.unsafeAllowSchemes says otherwise.
+// are accepted unless options.dangerouslyAllowSchemes says otherwise.
 export function textWindow(title, lines, options = {}) {
   check.list(lines, 'Lines', { min: 1 });
   for (const line of lines) {
     if (typeof line === 'string') continue;
     check.object(line, 'A line');
     check.text(line.text, 'Link text', { empty: false });
-    check.url(line.href, 'Link href', options.unsafeAllowSchemes);
+    check.url(line.href, 'Link href', options.dangerouslyAllowSchemes);
   }
   const widest = Math.max(...lines.map((l) => measure(typeof l === 'string' ? l : l.text, 'system')));
   const win = new DesktopWindow(title, [Math.max(260, widest + 70), lines.length * 16 + 85], options);
