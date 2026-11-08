@@ -11,6 +11,7 @@ import { arrow, growBox, titleBox } from './bitmap.js';
 import { measure } from './font.js';
 import { el, place, bitmapText, isOver, nearest } from './dom.js';
 import { screen, area, onResize, track, outline, zoomRects } from './screen.js';
+import * as check from './check.js';
 
 export const TITLE_H = 19;
 const INFO_H = 19;
@@ -40,7 +41,12 @@ export class DesktopWindow {
   // zoom boxes. The first time a window opens it goes where its opener
   // suggests, or else cascades from the top left; after that it stays where
   // the user left it.
-  constructor(title, [w, h], { info = false, labels = {} } = {}) {
+  constructor(title, size, { info = false, labels = {} } = {}) {
+    check.text(title, 'Window title', { empty: false });
+    const [w, h] = check.size(size, 'Window size');
+    check.flag(info, 'info');
+    check.object(labels, 'labels');
+    for (const key of ['close', 'zoom']) if (labels[key] !== undefined) check.text(labels[key], `labels.${key}`, { empty: false });
     screen();
     this.rect = { x: 0, y: 0, w, h };
     this.placed = false;
@@ -135,6 +141,8 @@ export class DesktopWindow {
 
   // Up to three strings for the info line: left, centre and right.
   setInfo(parts) {
+    if (!this.info) throw new Error('setInfo needs a window created with info: true');
+    check.list(parts, 'Info parts', { max: 3 }).forEach((p) => check.text(p, 'Info part'));
     this.info.replaceChildren();
     this.infoParts = parts.map((str) => {
       const t = bitmapText(str, 'small');

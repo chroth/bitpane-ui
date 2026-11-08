@@ -7,6 +7,7 @@ import { icon as iconArt } from './bitmap.js';
 import { measure } from './font.js';
 import { el, place, bitmapText } from './dom.js';
 import { screen, area, onResize } from './screen.js';
+import * as check from './check.js';
 
 const PAD = 4; // the dialog's double border
 
@@ -15,8 +16,16 @@ const PAD = 4; // the dialog's double border
 // { label, action } (closes the alert, then runs action). The last button
 // is the default: Return, Enter, Space and Escape press it. Returns
 // { buttons, close }.
-export function alert({ icon, message, buttons }) {
-  const lines = typeof message === 'string' ? [message] : message;
+export function alert(options) {
+  const { icon, message, buttons, unsafeAllowSchemes } = check.object(options, 'alert options');
+  const lines = typeof message === 'string' ? [message] : check.list(message, 'Message', { min: 1, max: 20 });
+  lines.forEach((l) => check.text(l, 'Message line'));
+  check.list(buttons, 'Buttons', { min: 1, max: 4 });
+  for (const b of buttons) {
+    check.object(b, 'A button');
+    if (b.href !== undefined) check.url(b.href, 'Button href', unsafeAllowSchemes);
+    else if (b.action !== undefined) check.fn(b.action, 'Button action');
+  }
   const textX = icon ? 62 : 16;
   const widths = buttons.map((b) => Math.max(70, measure(b.label, 'system') + 24));
   const row = widths.reduce((sum, w) => sum + w + 12, -12);
@@ -39,10 +48,17 @@ export function alert({ icon, message, buttons }) {
     place(line, { x: textX, y: 20 + i * 16 });
   });
 
+  // While the alert is up everything else is inert: nothing behind it can
+  // be clicked, focused or reached with the keyboard.
+  const root = screen();
+  const others = [...document.body.children, ...root.children].filter((n) => n !== root && n !== layer && !n.inert);
+  others.forEach((n) => { n.inert = true; });
+
   const close = () => {
     removeEventListener('keydown', onKey);
     stopCentering();
     layer.remove();
+    others.forEach((n) => { n.inert = false; });
   };
   let x = w - 2 * PAD - 16 - row;
   const y = h - 2 * PAD - 14 - 20;
@@ -51,7 +67,7 @@ export function alert({ icon, message, buttons }) {
     const isDefault = i === buttons.length - 1;
     x += widths[i] + 12;
     return b.href !== undefined
-      ? linkButton(box, b.label, rect, b.href, isDefault && buttons.length > 1)
+      ? linkButton(box, b.label, rect, b.href, isDefault && buttons.length > 1, { unsafeAllowSchemes })
       : pushButton(box, b.label, rect, isDefault && buttons.length > 1, () => { close(); b.action?.(); });
   });
 

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.0
+- **Breaking:** links are safe by default. `textWindow` links, `linkButton`, alert link buttons and application items accept only `http:`, `https:`, `mailto:` and relative URLs; other schemes throw unless the call passes `unsafeAllowSchemes`.
+- **Breaking:** every public function checks its input (text, sizes, positions, callbacks) and throws a clear error before changing anything.
+- `bitmapText` creates text elements only (no `<script>`, `<iframe>` and so on).
+- While an alert is open, everything else is `inert`.
+- Pictures load with `referrerPolicy="no-referrer"`.
+- Tests fail the build if the source uses HTML or code injection sinks, network, storage, cookies or cross-window messaging.
+- CI installs without lifecycle scripts, verifies npm registry signatures, and runs CodeQL. `.npmrc` disables install scripts locally too.
+- SECURITY.md describes the security model.
+
 ## 0.7.0
 - `DesktopWindow` `onShow` and `onHide` callbacks, called after a window opens and closes.
 

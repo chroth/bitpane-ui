@@ -1,9 +1,14 @@
 import { button } from './bitmap.js';
 import { el, place, isOver } from './dom.js';
 import { track } from './screen.js';
+import * as check from './check.js';
 
 // Draws a push button's normal and pressed looks into element `b`.
-function dress(b, label, { x, y, w, h }, isDefault) {
+function dress(b, label, rect, isDefault) {
+  check.text(label, 'Button label', { empty: false });
+  check.rect(rect, 'Button rect');
+  check.flag(isDefault, 'isDefault');
+  const { x, y, w, h } = rect;
   const off = button(label, w, h, { isDefault });
   const on = button(label, w, h, { isDefault, pressed: true });
   on.classList.add('on');
@@ -24,6 +29,7 @@ function dress(b, label, { x, y, w, h }, isDefault) {
 // A rounded push button. It inverts while pressed and fires only if the
 // pointer is released over it, like the real thing.
 export function pushButton(parent, label, rect, isDefault, onPress) {
+  check.fn(onPress, 'onPress');
   const b = el('button', 'btn', parent);
   b.type = 'button';
   dress(b, label, rect, isDefault);
@@ -45,8 +51,10 @@ export function pushButton(parent, label, rect, isDefault, onPress) {
 }
 
 // A push button that is a plain link underneath: the browser follows href
-// on click, middle-click or Enter, exactly as for any other link.
-export function linkButton(parent, label, rect, href, isDefault = false) {
+// on click, middle-click or Enter, exactly as for any other link. Only safe
+// URLs unless unsafeAllowSchemes says otherwise (see check.url).
+export function linkButton(parent, label, rect, href, isDefault = false, { unsafeAllowSchemes } = {}) {
+  check.url(href, 'Link button href', unsafeAllowSchemes);
   const a = el('a', 'btn', parent);
   a.href = href;
   dress(a, label, rect, isDefault);

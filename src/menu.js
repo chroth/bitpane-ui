@@ -1,6 +1,7 @@
 // One optional menu bar per screen. Labels use the same bitmap font as windows.
 import { bitmapText, el } from './dom.js';
 import { screen, area, onResize, reserveMenu } from './screen.js';
+import * as check from './check.js';
 
 let mounted = false;
 const HEIGHT = 22;
@@ -10,6 +11,19 @@ const HEIGHT = 22;
  * Returns a function that removes the bar.
  */
 export function menuBar(menus, { label = 'Application menu' } = {}) {
+  check.list(menus, 'Menus', { min: 1, max: 20 });
+  for (const menu of menus) {
+    check.object(menu, 'A menu');
+    check.text(menu.label, 'Menu label', { empty: false });
+    check.list(menu.items, 'Menu items', { max: 50 });
+    for (const item of menu.items) {
+      if (item === null) continue;
+      check.object(item, 'A menu item');
+      check.text(item.label, 'Menu item label', { empty: false });
+      check.fn(item.action, 'Menu item action');
+    }
+  }
+  check.text(label, 'Menu bar label', { empty: false });
   if (mounted) throw new Error('There is only one menu bar.');
   mounted = true;
   const bar = el('nav', 'menu-bar', screen());

@@ -78,6 +78,7 @@ export function area() {
 
 // Calls fn whenever area() changes. Returns a function that stops it.
 export function onResize(fn) {
+  if (typeof fn !== 'function') throw new TypeError('onResize needs a function');
   resizeListeners.add(fn);
   return () => resizeListeners.delete(fn);
 }

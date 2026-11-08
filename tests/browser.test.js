@@ -520,3 +520,86 @@ describe('controls', () => {
   });
 
 });
+
+describe('secure by design', () => {
+  test('every link API refuses unsafe URLs unless the call allows them on purpose', async () => {
+    const page = await open('apps');
+    const results = await page.evaluate(() => {
+      const bad = 'javascript:alert(1)';
+      const allow = ['javascript:'];
+      const attempt = (f) => { try { f(); return 'allowed'; } catch (e) { return e.message; } };
+      const r = {};
+      r.textWindow = [attempt(() => t.api.textWindow('X', [{ text: 'x', href: bad }])), attempt(() => t.api.textWindow('X', [{ text: 'x', href: bad }], { unsafeAllowSchemes: allow }))];
+      const button = (opts) => attempt(() => t.api.linkButton(document.body, 'X', { x: 0, y: 0, w: 60, h: 20 }, bad, false, opts).remove());
+      r.linkButton = [button(), button({ unsafeAllowSchemes: allow })];
+      r.alert = [attempt(() => t.api.alert({ message: 'x', buttons: [{ label: 'Go', href: bad }] }))];
+      r.alertLeftovers = document.querySelectorAll('.modal, [inert]').length;
+      r.alert.push(attempt(() => t.api.alert({ message: 'x', buttons: [{ label: 'Go', href: bad }], unsafeAllowSchemes: allow }).close()));
+      const app = (extra) => attempt(() => t.desktop.folderWindow('X', [{ label: 'X', kind: 'application', href: bad, ...extra }]));
+      r.application = [app(), app({ unsafeAllowSchemes: allow })];
+      return r;
+    });
+    const refused = 'uses the unsafe URL scheme "javascript:"; list it in unsafeAllowSchemes to allow it on purpose';
+    assert.deepEqual(results, {
+      textWindow: [`Link href ${refused}`, 'allowed'],
+      linkButton: [`Link button href ${refused}`, 'allowed'],
+      alert: [`Button href ${refused}`, 'allowed'],
+      alertLeftovers: 0,
+      application: [`Application href ${refused}`, 'allowed'],
+    });
+    await close(page);
+  });
+
+  test('an open alert makes everything else inert, so focus cannot leave it', async () => {
+    const page = await open('window');
+    await page.evaluate(() => { t.choice = null; t.api.alert({ message: 'Sure?', buttons: [{ label: 'No', action: () => (t.choice = 'no') }, { label: 'Yes', action: () => (t.choice = 'yes') }] }); });
+    for (let i = 0; i < 6; i++) {
+      await page.keyboard.press('Tab');
+      assert.equal(await page.evaluate(() => !!document.activeElement.closest('.dlg') || document.activeElement === document.body), true, 'focus left the alert');
+    }
+    assert.equal(await win(page, 'Notes').evaluate((e) => !!e.closest('[inert]')), true, 'the window behind is not inert');
+    await page.getByRole('button', { name: 'No' }).click();
+    assert.equal(await page.evaluate(() => [t.choice, document.querySelectorAll('[inert]').length].join()), 'no,0');
+    await close(page);
+  });
+
+  test('pictures load without sending a referrer', async () => {
+    const page = await open('desktop');
+    assert.equal(await page.evaluate(() => t.photo.img.referrerPolicy), 'no-referrer');
+    await close(page);
+  });
+
+  test('bad input fails at once, before anything changes', async () => {
+    const page = await open('window');
+    const results = await page.evaluate(() => {
+      const count = () => document.querySelectorAll('.win, .btn, .menu-bar, .modal').length;
+      const before = count();
+      const attempt = (f) => { try { f(); return 'no error'; } catch (e) { return e.message; } };
+      const r = [
+        attempt(() => new t.api.DesktopWindow('', [100, 100])),
+        attempt(() => new t.api.DesktopWindow('X', [NaN, 100])),
+        attempt(() => t.api.pushButton(document.body, 'OK', { x: 0, y: 0, w: 60, h: 20 }, false, 'alert(1)')),
+        attempt(() => t.api.bitmapText('x', 'system', 'script')),
+        attempt(() => t.api.menuBar([{ label: 'File', items: [{ label: 'Run', action: 'alert(1)' }] }])),
+        attempt(() => t.api.alert({ message: 'x', buttons: [] })),
+        attempt(() => t.api.onResize('alert(1)')),
+        attempt(() => t.notes.setInfo(['a'])),
+      ];
+      return { r, changed: count() - before };
+    });
+    assert.deepEqual(results, {
+      r: [
+        'Window title must not be empty',
+        'Window size[0] must be a number from 1 to 10000',
+        'onPress must be a function',
+        'bitmapText cannot create a <script>',
+        'Menu item action must be a function',
+        'Buttons must have 1 to 4 entries',
+        'onResize needs a function',
+        'setInfo needs a window created with info: true',
+      ],
+      changed: 0,
+    });
+    await close(page);
+  });
+});

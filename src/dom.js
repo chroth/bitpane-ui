@@ -1,6 +1,10 @@
 // DOM helpers shared by the screen, the desktop and dialogs.
 
 import { render } from './font.js';
+import * as check from './check.js';
+
+// Elements bitmapText may create: text containers only.
+const TEXT_TAGS = ['span', 'p', 'div', 'a', 'button', 'label', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
 
 export function el(tag, cls, parent) {
   const e = document.createElement(tag);
@@ -19,6 +23,8 @@ export function place(e, { x, y, w, h }) {
 
 // Bitmap text that screen readers still read as text.
 export function bitmapText(str, font = 'system', tag = 'span') {
+  check.text(str, 'Text');
+  if (!TEXT_TAGS.includes(tag)) throw new TypeError(`bitmapText cannot create a <${tag}>`);
   const e = el(tag, 't');
   el('span', 'sr-only', e).textContent = str;
   e.appendChild(render(str, font));

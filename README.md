@@ -67,6 +67,14 @@ Sizes and positions are in screen pixels; the screen is scaled up by a whole num
 
 Works with mouse, touch and keyboard.
 
+## Security
+
+Secure by design: no HTML or code from strings, strict input checks that throw before anything changes, inert backgrounds behind alerts, no network, storage or cookies, and no runtime dependencies. Works under a strict Content Security Policy with Trusted Types.
+
+Links accept only `http:`, `https:`, `mailto:` and relative URLs. To use another scheme on purpose, pass `unsafeAllowSchemes`, e.g. `{ unsafeAllowSchemes: ['javascript:'] }`, to `textWindow`, `linkButton`, `alert` or an application item.
+
+See [SECURITY.md](SECURITY.md) for the security model and how to report a vulnerability.
+
 ## Tests
 
 ```sh

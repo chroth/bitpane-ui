@@ -17,6 +17,7 @@ import { measure } from './font.js';
 import { el, place, bitmapText, nearest } from './dom.js';
 import { screen, area, onResize, pointer, rectOf, track, outline, zoomRects } from './screen.js';
 import { DesktopWindow, windowAt } from './windows.js';
+import * as check from './check.js';
 
 // The kinds of icon a folder can hold; the disk and Trash icons are the
 // Finder's own. Applications launch a URL; the others open a window.
@@ -56,11 +57,17 @@ function clampTo(b, x, y) {
   return { x: Math.max(b.x0, Math.min(b.x1, x)), y: Math.max(b.y0, Math.min(b.y1, y)) };
 }
 
-function checkItem({ kind, href, opens }) {
+function checkItem(item) {
+  const { label, kind, href, opens, kb, unsafeAllowSchemes } = check.object(item, 'An item');
+  check.text(label, 'Item label', { empty: false });
   if (!ITEM_KINDS.includes(kind)) throw new Error(`Unknown item kind "${kind}"`);
-  if (kind === 'application' ? typeof href !== 'string' : !opens) {
-    throw new Error(kind === 'application' ? 'An application needs an href' : `A ${kind} needs a window to open`);
+  if (kind === 'application') {
+    if (href === undefined) throw new Error('An application needs an href');
+    check.url(href, 'Application href', unsafeAllowSchemes);
+  } else if (!(opens instanceof DesktopWindow)) {
+    throw new Error(`A ${kind} needs a window to open`);
   }
+  if (kb !== undefined) check.number(kb, 'Item kb', { min: 0, max: 1e9 });
 }
 
 // --- Folders: the desktop and the inside of folder windows ---
@@ -326,7 +333,10 @@ export class Desktop {
   // text: replaces the Finder's English wording, any of { items(n),
   // used(k), free(k), trash }. labels: close and zoom box names for folder
   // windows, as for DesktopWindow.
-  constructor({ text: wording, labels } = {}) {
+  constructor({ text: wording = {}, labels } = {}) {
+    check.object(wording, 'text');
+    for (const key of ['items', 'used', 'free']) if (wording[key] !== undefined) check.fn(wording[key], `text.${key}`);
+    if (wording.trash !== undefined) check.text(wording.trash, 'text.trash', { empty: false });
     if (desktopFolder) throw new Error('Only one Desktop can exist per page.');
     text = { ...TEXT, ...wording };
     this.labels = labels;
@@ -350,7 +360,7 @@ export class Desktop {
   // A folder window holding icons: [{ label, kind, opens, kb }], where kind
   // is document, picture or folder.
   folderWindow(title, items, size = [320, 160]) {
-    items.forEach(checkItem);
+    check.list(items, 'Items').forEach(checkItem);
     const win = new FolderWindow(title, size, { labels: this.labels });
     for (const item of items) new Icon(win.folder, item);
     return win;
@@ -359,7 +369,9 @@ export class Desktop {
   // The disk icon, in the top right corner of the desktop. capacity: the
   // disk's size in K, which the windows' "K available" counts down from.
   disk(label, win, { capacity } = {}) {
-    if (capacity) diskCapacity = capacity;
+    check.text(label, 'Disk label', { empty: false });
+    if (!(win instanceof DesktopWindow) || !win.folder) throw new TypeError('The disk needs a folder window');
+    if (capacity !== undefined) diskCapacity = check.number(capacity, 'capacity', { min: 1, max: 1e9 });
     new Icon(desktopFolder, { label, kind: 'hd', opens: win, corner: 'top' });
     arrangeDesktop();
   }

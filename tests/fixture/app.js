@@ -4,9 +4,10 @@
 import {
   Desktop, DesktopWindow, textWindow, pictureWindow, menuBar, pushButton, bitmapText, alert, area, onResize,
 } from '../../src/index.js';
+import * as api from '../../src/index.js';
 import '../../src/bitpane.css';
 
-const t = { pressed: 0, menuActions: [], resizes: 0, area, bitmapText };
+const t = { pressed: 0, menuActions: [], resizes: 0, area, bitmapText, api };
 window.t = t;
 
 const scenes = {

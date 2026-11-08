@@ -20,6 +20,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
+      # No lifecycle scripts from dependencies; then check registry signatures.
+      - run: npm ci --ignore-scripts
+      - run: npm audit signatures
       - run: npx playwright install --with-deps chromium
       - run: npm test
