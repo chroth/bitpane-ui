@@ -23,5 +23,8 @@ jobs:
       # No lifecycle scripts from dependencies; then check registry signatures.
       - run: npm ci --ignore-scripts
       - run: npm audit signatures
+      # dist/ is committed so the package installs without a build; it must match src/.
+      - run: npm run build
+      - run: git diff --exit-code -- dist
       - run: npx playwright install --with-deps chromium
       - run: npm test
