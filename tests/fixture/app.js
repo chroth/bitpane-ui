@@ -3,8 +3,8 @@
 
 import {
   Desktop, DesktopWindow, textWindow, pictureWindow, menuBar, pushButton, bitmapText, alert, area, onResize,
-} from '../../src/index.js';
-import * as api from '../../src/index.js';
+} from '../../src/index.ts';
+import * as api from '../../src/index.ts';
 import '../../src/bitpane.css';
 
 const t = { pressed: 0, menuActions: [], resizes: 0, area, bitmapText, api };
@@ -12,7 +12,7 @@ window.t = t;
 
 const scenes = {
   desktop() {
-    const desktop = new Desktop();
+    const desktop = new Desktop({ capacity: 1000 });
     const readme = textWindow('Readme', [
       'Hello',
       { text: 'Link', href: 'https://example.com/' },
@@ -23,7 +23,7 @@ const scenes = {
       { label: 'Readme', kind: 'document', opens: readme, kb: 3 },
       { label: 'Projects', kind: 'folder', opens: projects },
     ]);
-    desktop.disk('HD', hd, { capacity: 1000 });
+    desktop.disk('HD', hd);
     desktop.trash([{ label: 'Photo', kind: 'picture', kb: 7, opens: photo }]);
     // Consumer content that happens to use the library's class names.
     const decoy = document.createElement('div');
@@ -48,11 +48,12 @@ const scenes = {
   // A desktop in another language.
   swedish() {
     const desktop = new Desktop({
+      capacity: 1000,
       text: { items: (n) => `${n} objekt`, used: (k) => `${k} på disken`, free: (k) => `${k} ledigt`, trash: 'Papperskorg' },
       labels: { close: 'Stäng', zoom: 'Zooma' },
     });
     const hd = desktop.folderWindow('HD', []);
-    desktop.disk('HD', hd, { capacity: 1000 });
+    desktop.disk('HD', hd);
     desktop.trash([]);
     t.hd = hd;
   },
@@ -60,7 +61,7 @@ const scenes = {
   window() {
     const notes = new DesktopWindow('Notes', [240, 160]);
     notes.content.append(bitmapText('Hello'));
-    pushButton(notes.content, 'OK', { x: 20, y: 40, w: 60, h: 20 }, true, () => t.pressed++);
+    pushButton(notes.content, { label: 'OK', rect: { x: 20, y: 40, w: 60, h: 20 }, isDefault: true, action: () => t.pressed++ });
     t.notes = notes;
     t.shown = 0;
     t.hidden = 0;

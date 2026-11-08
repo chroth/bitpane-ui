@@ -14,7 +14,7 @@ const FORBIDDEN = {
   'attributes that run code or style': /setAttribute\(\s*['"`](on\w+|style|href|src|srcset|formaction)['"`]/,
 };
 
-const files = readdirSync('src').filter((f) => f.endsWith('.js'));
+const files = readdirSync('src').filter((f) => f.endsWith('.ts'));
 
 for (const [risk, pattern] of Object.entries(FORBIDDEN)) {
   test(`src/ has no ${risk}`, () => {
@@ -27,11 +27,11 @@ for (const [risk, pattern] of Object.entries(FORBIDDEN)) {
   });
 }
 
-// Every place that sets a link checks the URL first (see check.url).
-test('every link a library function creates goes through check.url', () => {
+// Every place that sets a link checks the URL first (see check.href).
+test('every link a library function creates goes through check.href', () => {
   for (const file of files) {
     const src = readFileSync(`src/${file}`, 'utf8');
     const sets = (src.match(/\.href\s*=/g) || []).length;
-    if (sets) assert.ok((src.match(/check\.url\(/g) || []).length >= 1, `${file} sets href without check.url`);
+    if (sets) assert.ok((src.match(/check\.href\(/g) || []).length >= 1, `${file} sets href without check.href`);
   }
 });

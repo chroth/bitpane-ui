@@ -36,8 +36,7 @@ Sizes and positions are in screen pixels; the screen is scaled up by a whole num
 
 **Controls**
 - `bitmapText(text, font)`: bitmap text that screen readers can read; `font` is `system` or `small`.
-- `pushButton(parent, label, { x, y, w, h }, isDefault, onPress)`: push button.
-- `linkButton(parent, label, { x, y, w, h }, href, isDefault)`: push button that is a plain link.
+- `pushButton(parent, { label, rect, isDefault, action })`: push button. With `href` instead of `action`, it is a plain link. Returns the element, with `press()`.
 - `menuBar([{ label, items: [{ label, action, disabled }, null] }], { label })`: menu bar; `null` is a separator. Returns a function that removes it.
 - `alert({ icon, message, buttons })`: modal alert. A button is `{ label, href }` or `{ label, action }`; action buttons close the alert. The last button is the default. Returns `{ buttons, close }`.
 
@@ -52,8 +51,8 @@ Sizes and positions are in screen pixels; the screen is scaled up by a whole num
 - `pictureWindow(title, { src, width, height, alt })`: picture, loaded when first opened.
 
 **Finder** (one per page)
-- `new Desktop({ text, labels })`
-  - `disk(label, folder, { capacity })`: disk icon in the top right; `capacity` in K, default 20480.
+- `new Desktop({ capacity, text, labels })`: `capacity` is the disk size in K, default 20480.
+  - `disk(label, folder)`: disk icon in the top right.
   - `trash(items)`: Trash icon in the bottom right; looks full when it holds something.
   - `folderWindow(title, items, [w, h])`: folder window with icons.
   - `text`: replaces the English wording: `{ items(n), used(k), free(k), trash }`.
@@ -71,7 +70,7 @@ Works with mouse, touch and keyboard.
 
 Secure by design: no HTML or code from strings, strict input checks that throw before anything changes, inert backgrounds behind alerts, no network, storage or cookies, and no runtime dependencies. Works under a strict Content Security Policy with Trusted Types.
 
-Links accept only `http:`, `https:`, `mailto:` and relative URLs. To use another scheme on purpose, pass `dangerouslyAllowSchemes`, e.g. `{ dangerouslyAllowSchemes: ['javascript:'] }`, to `textWindow`, `linkButton`, `alert` or an application item.
+Links accept only `http:`, `https:`, `mailto:` and relative URLs. To use another scheme on purpose, list it next to the `href`, e.g. `{ href, dangerouslyAllowSchemes: ['javascript:'] }`.
 
 See [SECURITY.md](SECURITY.md) for the security model and how to report a vulnerability.
 

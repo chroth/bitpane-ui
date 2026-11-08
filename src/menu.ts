@@ -1,36 +1,33 @@
-// One optional menu bar per screen. Labels use the same bitmap font as windows.
+// The optional menu bar, one per screen, drawn in the same bitmap font as
+// windows. Nothing is added to the page until menuBar() is called.
+
 import { bitmapText, el } from './dom.js';
 import { screen, area, onResize, reserveMenu } from './screen.js';
-import * as check from './check.js';
 
-let mounted = false;
 const HEIGHT = 22;
+let mounted = false;
 
-/** Mount [{ label, items: [{ label, action, disabled? } | null] }].
- * A null item draws a separator. label: what screen readers call the bar.
- * Returns a function that removes the bar.
- */
-export function menuBar(menus, { label = 'Application menu' } = {}) {
-  check.list(menus, 'Menus', { min: 1, max: 20 });
-  for (const menu of menus) {
-    check.object(menu, 'A menu');
-    check.text(menu.label, 'Menu label', { empty: false });
-    check.list(menu.items, 'Menu items', { max: 50 });
-    for (const item of menu.items) {
-      if (item === null) continue;
-      check.object(item, 'A menu item');
-      check.text(item.label, 'Menu item label', { empty: false });
-      check.fn(item.action, 'Menu item action');
-    }
-  }
-  check.text(label, 'Menu bar label', { empty: false });
-  if (mounted) throw new Error('There is only one menu bar.');
+export interface MenuItem {
+  label: string;
+  action: () => void;
+  disabled?: boolean;
+}
+
+export interface Menu {
+  label: string;
+  /** null draws a separator. */
+  items: readonly (MenuItem | null)[];
+}
+
+/** Mounts the menu bar. Returns a function that removes it. */
+export function menuBar(menus: readonly Menu[], { label = 'Application menu' } = {}): () => void {
+  if (mounted) throw new Error('There is only one menu bar');
   mounted = true;
   const bar = el('nav', 'menu-bar', screen());
   bar.setAttribute('aria-label', label);
-  let active = null;
-  const triggers = [];
-  const close = (restoreFocus = false) => {
+  let active: { trigger: HTMLButtonElement; popup: HTMLDivElement } | null = null;
+  const triggers: HTMLButtonElement[] = [];
+  const close = (restoreFocus = false): void => {
     if (!active) return;
     const { trigger, popup } = active;
     popup.hidden = true;
@@ -40,7 +37,7 @@ export function menuBar(menus, { label = 'Application menu' } = {}) {
   };
   for (const menu of menus) {
     const group = el('div', 'menu-group', bar);
-    const trigger = bitmapText(menu.label, 'system', 'button');
+    const trigger = bitmapText(menu.label, 'system', 'button') as HTMLButtonElement;
     trigger.type = 'button';
     trigger.setAttribute('aria-haspopup', 'menu');
     trigger.setAttribute('aria-expanded', 'false');
@@ -50,13 +47,13 @@ export function menuBar(menus, { label = 'Application menu' } = {}) {
     popup.hidden = true;
     popup.setAttribute('role', 'menu');
     popup.setAttribute('aria-label', menu.label);
-    const items = [];
+    const items: HTMLButtonElement[] = [];
     for (const item of menu.items) {
       if (!item) {
         el('div', 'menu-separator', popup).setAttribute('role', 'separator');
         continue;
       }
-      const button = bitmapText(item.label, 'system', 'button');
+      const button = bitmapText(item.label, 'system', 'button') as HTMLButtonElement;
       button.type = 'button';
       button.setAttribute('role', 'menuitem');
       button.disabled = !!item.disabled;
@@ -68,18 +65,18 @@ export function menuBar(menus, { label = 'Application menu' } = {}) {
         item.action();
       });
     }
-    const open = (last = false) => {
+    const open = (last = false): void => {
       close();
       popup.hidden = false;
       trigger.setAttribute('aria-expanded', 'true');
       active = { trigger, popup };
-      // Keep right-edge menus within the screen, including narrow phones.
+      // Shift menus at the right edge left so they stay on narrow screens.
       popup.style.left = '0px';
       const overflow = popup.getBoundingClientRect().right - bar.getBoundingClientRect().right;
       if (overflow > 0) popup.style.left = -Math.ceil(overflow / (bar.getBoundingClientRect().width / bar.offsetWidth)) + 'px';
       (last ? items.at(-1) : items[0])?.focus();
     };
-    trigger.addEventListener('click', () => active?.trigger === trigger ? close(true) : open());
+    trigger.addEventListener('click', () => (active?.trigger === trigger ? close(true) : open()));
     trigger.addEventListener('keydown', (e) => {
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         e.preventDefault();
@@ -87,29 +84,31 @@ export function menuBar(menus, { label = 'Application menu' } = {}) {
       }
     });
     popup.addEventListener('keydown', (e) => {
-      const index = items.indexOf(document.activeElement);
-      const key = e.key;
-      if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(key)) {
+      const index = items.indexOf(document.activeElement as HTMLButtonElement);
+      if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) {
         e.preventDefault();
-        const next = key === 'Home' ? 0 : key === 'End' ? items.length - 1 : (index + (key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+        const next = e.key === 'Home' ? 0
+          : e.key === 'End' ? items.length - 1
+          : (index + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
         items[next]?.focus();
       }
     });
   }
-  const onKey = (e) => {
+  const onKey = (e: KeyboardEvent): void => {
     if (e.key === 'Escape') { e.preventDefault(); close(true); }
     if (e.key === 'Tab') close();
     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
       e.preventDefault();
-      const index = triggers.indexOf(active?.trigger || document.activeElement);
+      const current = active?.trigger ?? (document.activeElement as HTMLButtonElement);
+      const index = triggers.indexOf(current);
       const next = triggers[(index + (e.key === 'ArrowRight' ? 1 : -1) + triggers.length) % triggers.length];
       close();
       next?.focus();
     }
   };
-  const outside = (e) => { if (!bar.contains(e.target)) close(); };
-  const blur = (e) => { if (!bar.contains(e.relatedTarget)) close(); };
-  const layout = () => {
+  const outside = (e: PointerEvent): void => { if (!bar.contains(e.target as Node)) close(); };
+  const blur = (e: FocusEvent): void => { if (!bar.contains(e.relatedTarget as Node | null)) close(); };
+  const layout = (): void => {
     close();
     const a = area();
     Object.assign(bar.style, { left: a.x + 'px', top: a.y - HEIGHT + 'px', width: a.w + 'px' });

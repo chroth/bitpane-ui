@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.10.0
+- Written in TypeScript. `dist/` holds the compiled JavaScript and generated type definitions.
+- **Breaking:** `pushButton(parent, { label, rect, isDefault, action })`; with `href` instead of `action` it is a link. `linkButton` is removed.
+- **Breaking:** `dangerouslyAllowSchemes` goes next to each `href` (text-window line, button, alert button, application item) instead of on the call.
+- **Breaking:** `capacity` moves from `disk()` to `new Desktop({ capacity })`.
+- Runtime checks that types make redundant are gone; text length, sizes, URLs and icon art are still checked.
+
 ## 0.9.1
 - A window may have an empty title again (0.8.0 rejected it); it then gets no `aria-label`, so the page can set its own.
 

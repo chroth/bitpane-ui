@@ -329,13 +329,13 @@ describe('desktop', () => {
     await close(page);
   });
 
-  test('unknown item kinds and font names fail with a clear error', async () => {
+  test('unknown icon kinds and font names fail with a clear error', async () => {
     const page = await open('desktop');
-    const errors = await page.evaluate(() => ['nope', '__proto__', 'constructor', 'trashFull', 'hd'].map((kind) => {
+    const errors = await page.evaluate(() => ['nope', '__proto__', 'constructor'].map((kind) => {
       try { t.desktop.folderWindow('X', [{ label: 'X', kind, opens: t.readme }]); return 'no error'; } catch (e) { return e.message; }
     }));
-    assert.deepEqual(errors, ['nope', '__proto__', 'constructor', 'trashFull', 'hd'].map((k) => `Unknown item kind "${k}"`));
-    assert.equal(await page.evaluate(() => t.readme.opener.label), 'Readme', 'a failed icon still changed state');
+    assert.deepEqual(errors, ['nope', '__proto__', 'constructor'].map((k) => `Unknown icon kind "${k}"`));
+    assert.equal(await page.evaluate(() => t.readme.opener.el.getAttribute('aria-label')), 'Readme', 'a failed icon still changed state');
     const fonts = await page.evaluate(() => ['nope', '__proto__'].map((f) => {
       try { t.bitmapText('x', f); return 'no error'; } catch (e) { return e.message; }
     }));
@@ -392,7 +392,7 @@ describe('desktop', () => {
     await close(page);
   });
 
-  test('custom icon art is drawn, and bad art or items are rejected', async () => {
+  test('custom icon art is drawn, and bad art is rejected', async () => {
     const page = await open('apps');
     await openIcon(page, 'HD');
     // The 4x4 art is centred in the 32x32 icon: pixel (15, 15) is ink; corner (14, 14) is outside the shape.
@@ -404,14 +404,10 @@ describe('desktop', () => {
     const errors = await page.evaluate(() => [
       [{ label: 'X', kind: 'application', href: '/', art: ['2'] }],
       [{ label: 'X', kind: 'application', href: '/', art: Array(33).fill('1') }],
-      [{ label: 'X', kind: 'application' }],
-      [{ label: 'X', kind: 'document' }],
     ].map((items) => { try { t.desktop.folderWindow('X', items); return 'no error'; } catch (e) { return e.message; } }));
     assert.deepEqual(errors, [
       'Icon art must be up to 32 rows of up to 32 "0" or "1" characters',
       'Icon art must be up to 32 rows of up to 32 "0" or "1" characters',
-      'An application needs an href',
-      'A document needs a window to open',
     ]);
     await close(page);
   });
@@ -539,13 +535,13 @@ describe('secure by design', () => {
       const bad = 'javascript:alert(1)';
       const allow = ['javascript:'];
       const attempt = (f) => { try { f(); return 'allowed'; } catch (e) { return e.message; } };
+      const rect = { x: 0, y: 0, w: 60, h: 20 };
       const r = {};
-      r.textWindow = [attempt(() => t.api.textWindow('X', [{ text: 'x', href: bad }])), attempt(() => t.api.textWindow('X', [{ text: 'x', href: bad }], { dangerouslyAllowSchemes: allow }))];
-      const button = (opts) => attempt(() => t.api.linkButton(document.body, 'X', { x: 0, y: 0, w: 60, h: 20 }, bad, false, opts).remove());
-      r.linkButton = [button(), button({ dangerouslyAllowSchemes: allow })];
+      r.textWindow = [attempt(() => t.api.textWindow('X', [{ text: 'x', href: bad }])), attempt(() => t.api.textWindow('X', [{ text: 'x', href: bad, dangerouslyAllowSchemes: allow }]))];
+      r.pushButton = [attempt(() => t.api.pushButton(document.body, { label: 'X', rect, href: bad })), attempt(() => t.api.pushButton(document.body, { label: 'X', rect, href: bad, dangerouslyAllowSchemes: allow }).remove())];
       r.alert = [attempt(() => t.api.alert({ message: 'x', buttons: [{ label: 'Go', href: bad }] }))];
       r.alertLeftovers = document.querySelectorAll('.modal, [inert]').length;
-      r.alert.push(attempt(() => t.api.alert({ message: 'x', buttons: [{ label: 'Go', href: bad }], dangerouslyAllowSchemes: allow }).close()));
+      r.alert.push(attempt(() => t.api.alert({ message: 'x', buttons: [{ label: 'Go', href: bad, dangerouslyAllowSchemes: allow }] }).close()));
       const app = (extra) => attempt(() => t.desktop.folderWindow('X', [{ label: 'X', kind: 'application', href: bad, ...extra }]));
       r.application = [app(), app({ dangerouslyAllowSchemes: allow })];
       return r;
@@ -553,7 +549,7 @@ describe('secure by design', () => {
     const refused = 'uses the unsafe URL scheme "javascript:"; list it in dangerouslyAllowSchemes to allow it on purpose';
     assert.deepEqual(results, {
       textWindow: [`Link href ${refused}`, 'allowed'],
-      linkButton: [`Link button href ${refused}`, 'allowed'],
+      pushButton: [`Button href ${refused}`, 'allowed'],
       alert: [`Button href ${refused}`, 'allowed'],
       alertLeftovers: 0,
       application: [`Application href ${refused}`, 'allowed'],
@@ -576,7 +572,7 @@ describe('secure by design', () => {
 
   test('pictures load without sending a referrer', async () => {
     const page = await open('desktop');
-    assert.equal(await page.evaluate(() => t.photo.img.referrerPolicy), 'no-referrer');
+    assert.equal(await page.evaluate(() => t.photo.content.querySelector('img').referrerPolicy), 'no-referrer');
     await close(page);
   });
 
@@ -587,26 +583,22 @@ describe('secure by design', () => {
       const before = count();
       const attempt = (f) => { try { f(); return 'no error'; } catch (e) { return e.message; } };
       const r = [
-        attempt(() => new t.api.DesktopWindow(7, [100, 100])),
         attempt(() => new t.api.DesktopWindow('X', [NaN, 100])),
-        attempt(() => t.api.pushButton(document.body, 'OK', { x: 0, y: 0, w: 60, h: 20 }, false, 'alert(1)')),
+        attempt(() => t.api.pushButton(document.body, { label: 'OK', rect: { x: 0, y: 0, w: 1e9, h: 20 }, action() {} })),
         attempt(() => t.api.bitmapText('x', 'system', 'script')),
-        attempt(() => t.api.menuBar([{ label: 'File', items: [{ label: 'Run', action: 'alert(1)' }] }])),
+        attempt(() => t.api.bitmapText('x'.repeat(501))),
         attempt(() => t.api.alert({ message: 'x', buttons: [] })),
-        attempt(() => t.api.onResize('alert(1)')),
         attempt(() => t.notes.setInfo(['a'])),
       ];
       return { r, changed: count() - before };
     });
     assert.deepEqual(results, {
       r: [
-        'Window title must be a string',
-        'Window size[0] must be a number from 1 to 10000',
-        'onPress must be a function',
+        'Window width must be a number from 1 to 10000',
+        'Button width must be a number from 1 to 10000',
         'bitmapText cannot create a <script>',
-        'Menu item action must be a function',
-        'Buttons must have 1 to 4 entries',
-        'onResize needs a function',
+        'Text is longer than 500 characters',
+        'An alert needs at least one button',
         'setInfo needs a window created with info: true',
       ],
       changed: 0,
