@@ -27,22 +27,28 @@ export function pixels(value: number, what: string, min = -MAX_PIXELS): number {
   return value;
 }
 
-// The URL is parsed the way the browser will parse it, so letter case,
-// whitespace and control characters cannot disguise a scheme.
-export function href({ href, dangerouslyAllowSchemes = [] }: Link, what: string): string {
-  for (const s of dangerouslyAllowSchemes) {
+// Returns the checked string, which callers must use instead of the input:
+// both are converted to strings once here, so an object cannot stringify to
+// one URL when checked and another when used. The URL is parsed the way the
+// browser will parse it, so letter case, whitespace and control characters
+// cannot disguise a scheme; anything without a scheme is relative and takes
+// the page's own.
+export function href(link: Link, what: string): string {
+  const value = String(link.href);
+  const allowed = Array.from(link.dangerouslyAllowSchemes ?? [], String);
+  for (const s of allowed) {
     if (!/^[a-z][a-z0-9+.-]*:$/.test(s)) {
       throw new TypeError('dangerouslyAllowSchemes entries must be lowercase schemes such as "javascript:"');
     }
   }
   let scheme: string;
   try {
-    scheme = new URL(href, 'https://relative.invalid/').protocol;
+    scheme = new URL(value, 'https://relative.invalid/').protocol;
   } catch {
     throw new TypeError(`${what} is not a valid URL`);
   }
-  if (!SAFE_SCHEMES.includes(scheme) && !dangerouslyAllowSchemes.includes(scheme)) {
+  if (!SAFE_SCHEMES.includes(scheme) && !allowed.includes(scheme)) {
     throw new Error(`${what} uses the unsafe URL scheme "${scheme}"; list it in dangerouslyAllowSchemes to allow it on purpose`);
   }
-  return href;
+  return value;
 }

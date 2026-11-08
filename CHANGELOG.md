@@ -6,6 +6,7 @@
 - **Breaking:** `dangerouslyAllowSchemes` goes next to each `href` (text-window line, button, alert button, application item) instead of on the call.
 - **Breaking:** `capacity` moves from `disk()` to `new Desktop({ capacity })`.
 - Runtime checks that types make redundant are gone; text length, sizes, URLs and icon art are still checked.
+- A link `href` that is not a string is converted once, so the checked URL is the one used.
 
 ## 0.9.1
 - A window may have an empty title again (0.8.0 rejected it); it then gets no `aria-label`, so the page can set its own.

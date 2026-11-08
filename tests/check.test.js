@@ -27,6 +27,22 @@ test('links reject other schemes, however disguised', () => {
   }
 });
 
+test('an object is converted to a string once, so it cannot change between check and use', () => {
+  let calls = 0;
+  const sneaky = { toString: () => (calls++ === 0 ? 'https://ok.example/' : 'javascript:alert(1)') };
+  assert.equal(href(sneaky), 'https://ok.example/');
+  assert.equal(calls, 1);
+  let listed = 0;
+  const scheme = { toString: () => (listed++ === 0 ? 'mailto:' : 'javascript:') };
+  assert.throws(() => href('javascript:alert(1)', [scheme]), /unsafe URL scheme "javascript:"/);
+});
+
+test('strings without a valid scheme are relative and take the page scheme', () => {
+  for (const h of ['java\u0000script:alert(1)', 'javascript&colon;alert(1)', '%6Aavascript:alert(1)', '\uff4aavascript:alert(1)', '\\\\evil.example/x']) {
+    assert.equal(new URL(href(h), 'https://page.example/').protocol, 'https:', JSON.stringify(h));
+  }
+});
+
 test('dangerouslyAllowSchemes allows exactly the listed schemes', () => {
   assert.equal(href('javascript:void 0', ['javascript:']), 'javascript:void 0');
   assert.throws(() => href('data:,x', ['javascript:']), /unsafe URL scheme "data:"/);
