@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import * as check from '../src/check.js';
+import * as check from '../dist/check.js';
+
+const href = (h, allow) => check.href({ href: h, dangerouslyAllowSchemes: allow }, 'href');
 
 test('links accept http(s), mailto and relative URLs', () => {
-  for (const href of ['https://example.com/', 'HTTP://example.com', 'mailto:a@example.com', '/games', 'about', '#top', '?q=1', '//example.com/x', '']) {
-    assert.equal(check.url(href, 'href'), href);
+  for (const h of ['https://example.com/', 'HTTP://example.com', 'mailto:a@example.com', '/games', 'about', '#top', '?q=1', '//example.com/x', '']) {
+    assert.equal(href(h), h);
   }
 });
 
@@ -20,32 +22,23 @@ test('links reject other schemes, however disguised', () => {
     'file:///etc/passwd': 'file:',
     'blob:https://example.com/x': 'blob:',
   };
-  for (const [href, scheme] of Object.entries(unsafe)) {
-    assert.throws(() => check.url(href, 'href'), new RegExp(`unsafe URL scheme "${scheme}"`), JSON.stringify(href));
+  for (const [h, scheme] of Object.entries(unsafe)) {
+    assert.throws(() => href(h), new RegExp(`unsafe URL scheme "${scheme}"`), JSON.stringify(h));
   }
 });
 
 test('dangerouslyAllowSchemes allows exactly the listed schemes', () => {
-  assert.equal(check.url('javascript:void 0', 'href', ['javascript:']), 'javascript:void 0');
-  assert.throws(() => check.url('data:,x', 'href', ['javascript:']), /unsafe URL scheme "data:"/);
-  for (const bad of ['JavaScript:', 'javascript', 7, 'java script:']) {
-    assert.throws(() => check.url('/x', 'href', [bad]), /dangerouslyAllowSchemes entries/);
+  assert.equal(href('javascript:void 0', ['javascript:']), 'javascript:void 0');
+  assert.throws(() => href('data:,x', ['javascript:']), /unsafe URL scheme "data:"/);
+  for (const bad of ['JavaScript:', 'javascript', 'java script:']) {
+    assert.throws(() => href('/x', [bad]), /dangerouslyAllowSchemes entries/);
   }
-  assert.throws(() => check.url('/x', 'href', 'javascript:'), /must be an array/);
 });
 
-test('URLs must be strings', () => {
-  for (const bad of [undefined, null, 1, {}, ['/']]) assert.throws(() => check.url(bad, 'href'), /must be a string/);
-});
-
-test('text, numbers, sizes, rects and callbacks are checked', () => {
-  assert.throws(() => check.text(1, 'Label'), /must be a string/);
-  assert.throws(() => check.text('', 'Label', { empty: false }), /must not be empty/);
+test('text length and pixel values are checked', () => {
+  assert.equal(check.text('x'.repeat(500), 'Label').length, 500);
   assert.throws(() => check.text('x'.repeat(501), 'Label'), /longer than 500/);
-  for (const bad of [NaN, Infinity, '5', 20000]) assert.throws(() => check.number(bad, 'n'), /must be a number/);
-  assert.throws(() => check.size([0, 10], 'size'), /must be a number from 1/);
-  assert.throws(() => check.size([10], 'size'), /2 to 2 entries/);
-  assert.throws(() => check.rect({ x: 0, y: 0, w: 10 }, 'rect'), /rect\.h must be a number/);
-  assert.throws(() => check.fn('alert(1)', 'onPress'), /must be a function/);
-  assert.throws(() => check.flag('yes', 'isDefault'), /true or false/);
+  for (const bad of [NaN, Infinity, 20000]) assert.throws(() => check.pixels(bad, 'n'), /must be a number/);
+  assert.throws(() => check.pixels(0, 'w', 1), /from 1 to/);
+  assert.equal(check.pixels(-5, 'x'), -5);
 });

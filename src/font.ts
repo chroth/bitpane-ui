@@ -3,7 +3,30 @@
 // a row n times, and a leading "@n" shifts the glyph n rows (negative = up).
 // Row 0 is the cap line; descenders continue below the baseline.
 
-const SYSTEM = {
+import * as check from './check.js';
+
+export type FontName = 'system' | 'small';
+
+interface FontData {
+  lineHeight: number;
+  top: number;
+  space: number;
+  glyphs: Record<string, string>;
+}
+
+interface Glyph {
+  y: number;
+  w: number;
+  rows: string[];
+}
+
+interface Font {
+  lineHeight: number;
+  top: number;
+  glyphs: Map<string, Glyph>;
+}
+
+const SYSTEM: FontData = {
   lineHeight: 16, top: 3, space: 4,
   glyphs: {
     'A': '.####. ##..##*3 ###### ##..##*4',
@@ -117,7 +140,7 @@ const SYSTEM = {
   },
 };
 
-const SMALL = {
+const SMALL: FontData = {
   lineHeight: 12, top: 2, space: 3,
   glyphs: {
     'A': '..#.. .#.#.*2 #...# ##### #...#*2',
@@ -231,38 +254,40 @@ const SMALL = {
   },
 };
 
-function parse(def) {
+function parse(def: string): Glyph {
   const tokens = def.split(' ');
   let y = 0;
-  if (tokens[0][0] === '@') y = parseInt(tokens.shift().slice(1), 10);
-  const rows = [];
+  if (tokens[0]?.startsWith('@')) y = parseInt(tokens.shift()!.slice(1), 10);
+  const rows: string[] = [];
   for (const t of tokens) {
-    const [row, n] = t.split('*');
+    const [row = '', n] = t.split('*');
     for (let i = 0; i < (n ? +n : 1); i++) rows.push(row);
   }
-  return { y, w: rows[0].length, rows };
+  return { y, w: rows[0]?.length ?? 0, rows };
 }
 
-function compile(font) {
-  const out = {};
-  for (const ch in font.glyphs) out[ch] = parse(font.glyphs[ch]);
-  out[' '] = { y: 0, w: font.space, rows: [] };
-  out[' '] = out[' '];
-  return Object.assign({}, font, { glyphs: out });
+function compile({ lineHeight, top, space, glyphs }: FontData): Font {
+  const out = new Map<string, Glyph>();
+  for (const [ch, def] of Object.entries(glyphs)) out.set(ch, parse(def));
+  const blank = { y: 0, w: space, rows: [] };
+  out.set(' ', blank);
+  out.set('\u00a0', blank);
+  return { lineHeight, top, glyphs: out };
 }
 
-export const FONTS = { system: compile(SYSTEM), small: compile(SMALL) };
+export const FONTS: Record<FontName, Font> = { system: compile(SYSTEM), small: compile(SMALL) };
 
-function glyph(font, ch) {
-  return font.glyphs[ch] || font.glyphs['?'];
+// Characters without a glyph are drawn as a question mark.
+function glyph(font: Font, ch: string): Glyph {
+  return font.glyphs.get(ch) ?? font.glyphs.get('?')!;
 }
 
-function fontNamed(name) {
+function fontNamed(name: FontName): Font {
   if (!Object.hasOwn(FONTS, name)) throw new Error(`Unknown font "${name}"`);
   return FONTS[name];
 }
 
-export function measure(str, fontName) {
+export function measure(str: string, fontName: FontName): number {
   const font = fontNamed(fontName);
   let w = 0;
   for (const ch of str) w += glyph(font, ch).w + 1;
@@ -270,16 +295,17 @@ export function measure(str, fontName) {
 }
 
 // Draws lines of text into a canvas, one pixel per CSS pixel.
-export function render(lines, fontName, color) {
+export function render(lines: string | string[], fontName: FontName, color = '#000'): HTMLCanvasElement {
   const font = fontNamed(fontName);
-  if (typeof lines === 'string') lines = [lines];
-  const width = Math.max(1, ...lines.map((l) => measure(l, fontName)));
+  const list = typeof lines === 'string' ? [lines] : lines;
+  for (const line of list) check.text(line, 'Text');
+  const width = Math.max(1, ...list.map((l) => measure(l, fontName)));
   const canvas = document.createElement('canvas');
   canvas.width = width;
-  canvas.height = font.lineHeight * lines.length;
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = color || '#000';
-  lines.forEach((line, i) => {
+  canvas.height = font.lineHeight * list.length;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = color;
+  list.forEach((line, i) => {
     let x = 0;
     const top = i * font.lineHeight + font.top;
     for (const ch of line) {
@@ -296,5 +322,3 @@ export function render(lines, fontName, color) {
   canvas.setAttribute('aria-hidden', 'true');
   return canvas;
 }
-
-
