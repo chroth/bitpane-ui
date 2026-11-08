@@ -42,7 +42,7 @@ export class DesktopWindow {
   // suggests, or else cascades from the top left; after that it stays where
   // the user left it.
   constructor(title, size, { info = false, labels = {} } = {}) {
-    check.text(title, 'Window title', { empty: false });
+    check.text(title, 'Window title'); // may be empty: a window without a title
     const [w, h] = check.size(size, 'Window size');
     check.flag(info, 'info');
     check.object(labels, 'labels');
@@ -58,7 +58,7 @@ export class DesktopWindow {
     this.el = el('div', 'win');
     windowOf.set(this.el, this);
     this.el.setAttribute('role', 'dialog');
-    this.el.setAttribute('aria-label', title);
+    if (title) this.el.setAttribute('aria-label', title);
 
     const tb = el('div', 'tb', this.el);
     const close = this.titleButton(tb, 'close', labels.close ?? 'Close', () => this.hide());

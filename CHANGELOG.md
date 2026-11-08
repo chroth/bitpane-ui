@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.9.1
+- A window may have an empty title again (0.8.0 rejected it); it then gets no `aria-label`, so the page can set its own.
+
 ## 0.9.0
 - **Breaking:** the opt-in for other link schemes is renamed `dangerouslyAllowSchemes` (was `unsafeAllowSchemes`), so the call itself reads as a warning.
 

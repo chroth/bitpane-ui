@@ -183,6 +183,17 @@ describe('windows', () => {
     await close(page);
   });
 
+  test('a window may have no title', async () => {
+    const page = await open('window');
+    const label = await page.evaluate(async () => {
+      const w = new t.api.DesktopWindow('', [200, 120]);
+      await w.show();
+      return w.el.getAttribute('aria-label');
+    });
+    assert.equal(label, null);
+    await close(page);
+  });
+
   test('dragging the title bar moves the window', async () => {
     const page = await open('window');
     const before = await rect(page, 'notes');
@@ -576,7 +587,7 @@ describe('secure by design', () => {
       const before = count();
       const attempt = (f) => { try { f(); return 'no error'; } catch (e) { return e.message; } };
       const r = [
-        attempt(() => new t.api.DesktopWindow('', [100, 100])),
+        attempt(() => new t.api.DesktopWindow(7, [100, 100])),
         attempt(() => new t.api.DesktopWindow('X', [NaN, 100])),
         attempt(() => t.api.pushButton(document.body, 'OK', { x: 0, y: 0, w: 60, h: 20 }, false, 'alert(1)')),
         attempt(() => t.api.bitmapText('x', 'system', 'script')),
@@ -589,7 +600,7 @@ describe('secure by design', () => {
     });
     assert.deepEqual(results, {
       r: [
-        'Window title must not be empty',
+        'Window title must be a string',
         'Window size[0] must be a number from 1 to 10000',
         'onPress must be a function',
         'bitmapText cannot create a <script>',
