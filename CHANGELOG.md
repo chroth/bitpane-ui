@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.11.0
+- A link `href` that is not a string is converted once, so the checked URL is the one used.
+
 ## 0.10.0
 - Written in TypeScript. `dist/` holds the compiled JavaScript and generated type definitions.
 - **Breaking:** `pushButton(parent, { label, rect, isDefault, action })`; with `href` instead of `action` it is a link. `linkButton` is removed.
