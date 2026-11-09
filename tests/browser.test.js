@@ -676,7 +676,7 @@ describe('controls', () => {
     const page = await open('linkAlert');
     await page.waitForSelector('.dlg');
     const behind = await center(win(page, 'Behind').locator('.tb'));
-    assert.equal(await page.evaluate(({ x, y }) => !!document.elementFromPoint(x, y).closest('.modal'), behind), true);
+    assert.equal(await page.evaluate(({ x, y }) => !!document.elementFromPoint(x, y).closest('.dlg'), behind), true, 'a click behind the alert reaches the page');
     assert.match(await page.locator('.dlg').innerText(), /Something broke\.[\s\S]*ID = 42/);
     const restart = page.getByRole('link', { name: 'Restart' });
     assert.equal(await restart.getAttribute('href'), '#restarted');
@@ -697,12 +697,12 @@ describe('controls', () => {
     let page = await open('actionAlert');
     await page.getByRole('button', { name: 'Discard' }).click();
     assert.equal(await page.evaluate(() => t.choice), 'discard');
-    assert.equal(await page.locator('.modal').count(), 0);
+    assert.equal(await page.locator('.dlg').count(), 0);
     await close(page);
     page = await open('actionAlert');
     await page.keyboard.press('Enter');
     await page.waitForFunction(() => t.choice === 'save');
-    assert.equal(await page.locator('.modal').count(), 0);
+    assert.equal(await page.locator('.dlg').count(), 0);
     await close(page);
   });
 
@@ -710,7 +710,7 @@ describe('controls', () => {
   test('alert keys go to the focused button; Escape presses nothing; actions run once', async () => {
     let page = await open('actionAlert');
     await page.keyboard.press('Escape');
-    assert.equal(await page.locator('.modal').count(), 1, 'Escape pressed a button');
+    assert.equal(await page.locator('.dlg[open]').count(), 1, 'Escape closed the alert');
     for (const key of ['Enter', ' ']) {
       await close(page);
       page = await open('actionAlert');
@@ -727,6 +727,15 @@ describe('controls', () => {
     await page.evaluate(() => { t.a.buttons[0].press(); t.a.buttons[0].press(); });
     await page.waitForTimeout(400);
     assert.equal(await page.evaluate(() => t.n), 1);
+    await close(page);
+  });
+
+  test('Return after clicking the alert background presses the default', async () => {
+    const page = await open('actionAlert');
+    const box = await page.locator('.dlg').boundingBox();
+    await page.mouse.click(box.x + 20, box.y + 10);
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => t.choice === 'save');
     await close(page);
   });
 
@@ -763,7 +772,7 @@ describe('secure by design', () => {
       r.textWindow = [attempt(() => t.api.textWindow('X', [{ text: 'x', href: bad }])), attempt(() => t.api.textWindow('X', [{ text: 'x', href: bad, dangerouslyAllowSchemes: allow }]))];
       r.pushButton = [attempt(() => t.api.pushButton(document.body, { label: 'X', rect, href: bad })), attempt(() => t.api.pushButton(document.body, { label: 'X', rect, href: bad, dangerouslyAllowSchemes: allow }).remove())];
       r.alert = [attempt(() => t.api.alert({ message: 'x', buttons: [{ label: 'Go', href: bad }] }))];
-      r.alertLeftovers = document.querySelectorAll('.modal, [inert]').length;
+      r.alertLeftovers = document.querySelectorAll('.dlg').length;
       r.alert.push(attempt(() => t.api.alert({ message: 'x', buttons: [{ label: 'Go', href: bad, dangerouslyAllowSchemes: allow }] }).close()));
       const app = (extra) => attempt(() => t.desktop.folderWindow('X', [{ label: 'X', kind: 'application', href: bad, ...extra }]));
       r.application = [app(), app({ dangerouslyAllowSchemes: allow })];
@@ -787,28 +796,32 @@ describe('secure by design', () => {
       await page.keyboard.press('Tab');
       assert.equal(await page.evaluate(() => !!document.activeElement.closest('.dlg') || document.activeElement === document.body), true, 'focus left the alert');
     }
-    assert.equal(await win(page, 'Notes').evaluate((e) => !!e.closest('[inert]')), true, 'the window behind is not inert');
+    const focusable = () => win(page, 'Notes').evaluate((e) => { e.focus(); return document.activeElement === e; });
+    assert.equal(await focusable(), false, 'the window behind can take focus');
     await page.getByRole('button', { name: 'No' }).click();
-    assert.equal(await page.evaluate(() => [t.choice, document.querySelectorAll('[inert]').length].join()), 'no,0');
+    assert.equal(await page.evaluate(() => [t.choice, document.querySelectorAll('.dlg').length].join()), 'no,0');
+    assert.equal(await focusable(), true, 'the window behind stays inert');
     await close(page);
   });
 
   test('windows opened during an alert are inert too, and nested alerts close in any order', async () => {
     const page = await open('window');
     const r = await page.evaluate(async () => {
+      // Inert elements cannot take focus; focus goes back where it was.
+      const inert = (e) => { const was = document.activeElement; e.focus(); const yes = document.activeElement !== e; was.focus(); return yes; };
       const notes = document.querySelector('.win[aria-label=Notes]');
       const a = t.api.alert({ message: 'one', buttons: [{ label: 'A' }] });
       const late = new t.api.DesktopWindow('Late', [200, 100]);
       await late.show();
-      await new Promise((done) => setTimeout(done));
-      const lateInert = late.el.inert;
+      const lateInert = inert(late.el);
+      const lateFocused = late.el.contains(document.activeElement);
       const b = t.api.alert({ message: 'two', buttons: [{ label: 'B' }] });
       a.close();
-      const underB = [notes.inert, late.el.inert, document.querySelector('.modal').inert];
+      const underB = [inert(notes), inert(late.el), inert(document.querySelector('.dlg'))];
       b.close();
-      return { lateInert, underB, after: document.querySelectorAll('[inert]').length };
+      return { lateInert, lateFocused, underB, after: [inert(notes), inert(late.el)] };
     });
-    assert.deepEqual(r, { lateInert: true, underB: [true, true, false], after: 0 });
+    assert.deepEqual(r, { lateInert: true, lateFocused: false, underB: [true, true, false], after: [false, false] });
     await close(page);
   });
 
@@ -821,7 +834,7 @@ describe('secure by design', () => {
   test('bad input fails at once, before anything changes', async () => {
     const page = await open('window');
     const results = await page.evaluate(() => {
-      const count = () => document.querySelectorAll('.win, .btn, .menu-bar, .modal').length;
+      const count = () => document.querySelectorAll('.win, .btn, .menu-bar, .dlg').length;
       const before = count();
       const attempt = (f) => { try { f(); return 'no error'; } catch (e) { return e.message; } };
       const r = [

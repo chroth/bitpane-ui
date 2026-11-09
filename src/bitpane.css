@@ -243,14 +243,24 @@ canvas.px, img.px {
 
 /* --- Modal dialogs --- */
 
-.modal { position: absolute; inset: 0; z-index: 1000000; }
-
+/* A modal dialog sits in the top layer, outside the scaled screen: scale it
+   here, and move it by --x and --y in screen pixels. */
 .dlg {
-  position: absolute;
+  position: fixed;
+  margin: 0;
+  padding: 0;
+  max-width: none;
+  max-height: none;
+  overflow: visible;
+  color: #000;
+  outline: none;
+  transform-origin: 0 0;
+  transform: scale(var(--scale, 1)) translate(var(--x, 0), var(--y, 0));
   background: #fff;
   border: 2px solid #000;
   box-shadow: 0 0 0 1px #fff, 0 0 0 2px #000;
 }
+.dlg::backdrop { background: transparent; }
 .dlg > * { position: absolute; margin: 0; }
 
 .btn { position: absolute; }
