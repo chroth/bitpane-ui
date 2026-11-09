@@ -99,8 +99,9 @@ export interface Drag {
   end?(dx: number, dy: number, moved: boolean, ev: PointerEvent): void;
 }
 
-/** Follows a pointer drag that started with `event` until release. */
+/** Follows a pointer drag that started with `event` until that pointer is released; other fingers are ignored. */
 export function track(event: PointerEvent, { move, end }: Drag): void {
+  const id = event.pointerId;
   const start = pointer(event);
   let moved = false;
   const delta = (ev: PointerEvent): [number, number] => {
@@ -108,11 +109,13 @@ export function track(event: PointerEvent, { move, end }: Drag): void {
     return [Math.round(p.x - start.x), Math.round(p.y - start.y)];
   };
   const onMove = (ev: PointerEvent): void => {
+    if (ev.pointerId !== id) return;
     const [dx, dy] = delta(ev);
     if (Math.abs(dx) > 2 || Math.abs(dy) > 2) moved = true;
     if (moved) move?.(dx, dy, ev);
   };
   const onUp = (ev: PointerEvent): void => {
+    if (ev.pointerId !== id) return;
     removeEventListener('pointermove', onMove);
     removeEventListener('pointerup', onUp);
     removeEventListener('pointercancel', onUp);

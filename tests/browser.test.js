@@ -294,6 +294,26 @@ describe('windows', () => {
     await close(page);
   });
 
+  test('a second finger does not move or end a drag', async () => {
+    const page = await open('window', { hasTouch: true });
+    const box = await win(page, 'Notes').locator('.ttl').boundingBox();
+    const x = box.x + box.width / 2, y = box.y + box.height / 2;
+    const cdp = await page.context().newCDPSession(page);
+    const touch = (type, touchPoints) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints });
+    const first = (d) => ({ x: x + d, y: y + d, id: 1 });
+    await touch('touchStart', [first(0)]);
+    await touch('touchMove', [first(10)]);
+    await touch('touchStart', [first(10), { x: 1200, y: 800, id: 2 }]);
+    await touch('touchMove', [first(20), { x: 1300, y: 850, id: 2 }]);
+    await touch('touchEnd', [{ x: 1300, y: 850, id: 2 }]); // lists the finger lifted
+    await touch('touchMove', [first(40)]);
+    await touch('touchEnd', [first(40)]);
+    await page.waitForTimeout(200);
+    const scale = await page.evaluate(() => document.querySelector('.win').getBoundingClientRect().width / t.notes.rect.w);
+    assert.deepEqual(await page.evaluate(() => t.notes.rect), { x: 24 + 40 / scale, y: 30 + 40 / scale, w: 240, h: 160 });
+    await close(page);
+  });
+
   test('close boxes have finger-sized touch targets on touch screens', async () => {
     const page = await open('window', { width: 390, height: 664, isMobile: true, hasTouch: true, deviceScaleFactor: 3 });
     const box = await center(win(page, 'Notes').locator('.close'));

@@ -87,8 +87,9 @@ export function rectOf(e) {
         h: Math.round(r.height / scale),
     };
 }
-/** Follows a pointer drag that started with `event` until release. */
+/** Follows a pointer drag that started with `event` until that pointer is released; other fingers are ignored. */
 export function track(event, { move, end }) {
+    const id = event.pointerId;
     const start = pointer(event);
     let moved = false;
     const delta = (ev) => {
@@ -96,6 +97,8 @@ export function track(event, { move, end }) {
         return [Math.round(p.x - start.x), Math.round(p.y - start.y)];
     };
     const onMove = (ev) => {
+        if (ev.pointerId !== id)
+            return;
         const [dx, dy] = delta(ev);
         if (Math.abs(dx) > 2 || Math.abs(dy) > 2)
             moved = true;
@@ -103,6 +106,8 @@ export function track(event, { move, end }) {
             move?.(dx, dy, ev);
     };
     const onUp = (ev) => {
+        if (ev.pointerId !== id)
+            return;
         removeEventListener('pointermove', onMove);
         removeEventListener('pointerup', onUp);
         removeEventListener('pointercancel', onUp);
