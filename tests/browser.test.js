@@ -567,6 +567,49 @@ describe('controls', () => {
     await close(page);
   });
 
+
+  test('alert keys go to the focused button; Escape presses nothing; actions run once', async () => {
+    let page = await open('actionAlert');
+    await page.keyboard.press('Escape');
+    assert.equal(await page.locator('.modal').count(), 1, 'Escape pressed a button');
+    for (const key of ['Enter', ' ']) {
+      await close(page);
+      page = await open('actionAlert');
+      await page.keyboard.press('Shift+Tab');
+      await page.keyboard.press(key);
+      await page.waitForTimeout(200);
+      assert.equal(await page.evaluate(() => t.choice), 'discard', `${key} on Discard`);
+    }
+    await close(page);
+    page = await open('window');
+    await page.evaluate(() => { t.n = 0; t.a = t.api.alert({ message: 'x', buttons: [{ label: 'OK', action: () => t.n++ }] }); });
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Enter');
+    await page.evaluate(() => { t.a.buttons[0].press(); t.a.buttons[0].press(); });
+    await page.waitForTimeout(400);
+    assert.equal(await page.evaluate(() => t.n), 1);
+    await close(page);
+  });
+
+  test('modified Enter on an alert link button is left to the browser', async () => {
+    const page = await open('linkAlert');
+    const [tab] = await Promise.all([page.context().waitForEvent('page'), page.keyboard.press('Control+Enter')]);
+    await tab.waitForLoadState();
+    assert.match(tab.url(), /#restarted$/);
+    assert.equal(await page.evaluate(() => location.hash), '#linkAlert');
+    await tab.close();
+    await close(page);
+  });
+
+  test('closing an alert returns focus to where it was', async () => {
+    const page = await open('window');
+    await win(page, 'Notes').locator('.btn').focus();
+    await page.evaluate(() => t.api.alert({ message: 'x', buttons: [{ label: 'OK' }] }));
+    await page.keyboard.press('Enter');
+    assert.equal(await page.evaluate(() => document.activeElement.textContent), 'OK');
+    assert.equal(await page.evaluate(() => !!document.activeElement.closest('.win[aria-label=Notes]')), true);
+    await close(page);
+  });
 });
 
 describe('secure by design', () => {
@@ -608,6 +651,25 @@ describe('secure by design', () => {
     assert.equal(await win(page, 'Notes').evaluate((e) => !!e.closest('[inert]')), true, 'the window behind is not inert');
     await page.getByRole('button', { name: 'No' }).click();
     assert.equal(await page.evaluate(() => [t.choice, document.querySelectorAll('[inert]').length].join()), 'no,0');
+    await close(page);
+  });
+
+  test('windows opened during an alert are inert too, and nested alerts close in any order', async () => {
+    const page = await open('window');
+    const r = await page.evaluate(async () => {
+      const notes = document.querySelector('.win[aria-label=Notes]');
+      const a = t.api.alert({ message: 'one', buttons: [{ label: 'A' }] });
+      const late = new t.api.DesktopWindow('Late', [200, 100]);
+      await late.show();
+      await new Promise((done) => setTimeout(done));
+      const lateInert = late.el.inert;
+      const b = t.api.alert({ message: 'two', buttons: [{ label: 'B' }] });
+      a.close();
+      const underB = [notes.inert, late.el.inert, document.querySelector('.modal').inert];
+      b.close();
+      return { lateInert, underB, after: document.querySelectorAll('[inert]').length };
+    });
+    assert.deepEqual(r, { lateInert: true, underB: [true, true, false], after: 0 });
     await close(page);
   });
 

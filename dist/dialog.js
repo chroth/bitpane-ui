@@ -1,12 +1,40 @@
 // Modal alerts. A transparent layer over the whole screen swallows pointer
-// input and everything else is made inert, so nothing outside the alert can
-// be clicked, focused or reached with the keyboard while it is open.
+// input and everything else is made inert, so nothing outside the newest
+// alert can be clicked, focused or reached with the keyboard while it is open.
 import { icon as iconArt } from './bitmap.js';
 import { pushButton } from './button.js';
 import { el, place, bitmapText } from './dom.js';
 import { measure } from './font.js';
 import { screen, area, onResize } from './screen.js';
 const PAD = 4; // the dialog's double border
+// Open alerts, newest last. While any is open, everything on the page but
+// the newest is inert, windows opened later included, and focus stays in it.
+// Only what was made inert here is made live again.
+const alerts = [];
+const madeInert = new Set();
+let watcher = null;
+function block() {
+    const root = screen(), top = alerts.at(-1);
+    for (const n of madeInert) {
+        if (top && n !== top.layer)
+            continue;
+        n.inert = false;
+        madeInert.delete(n);
+    }
+    if (!top)
+        return watcher?.disconnect();
+    for (const n of [...document.body.children, ...root.children]) {
+        if (n === root || n === top.layer || n.inert)
+            continue;
+        n.inert = true;
+        madeInert.add(n);
+    }
+    if (!top.layer.contains(document.activeElement))
+        top.def.focus();
+    watcher ??= new MutationObserver(block);
+    watcher.observe(document.body, { childList: true });
+    watcher.observe(root, { childList: true });
+}
 export function alert({ icon, message, buttons }) {
     if (!buttons.length)
         throw new Error('An alert needs at least one button');
@@ -39,14 +67,15 @@ export function alert({ icon, message, buttons }) {
         const rect = { x, y, w: widths[i], h: 20 };
         x += widths[i] + 12;
         const isDefault = buttons.length > 1 && i === buttons.length - 1;
-        const target = 'href' in b ? b : { action: () => { close(); b.action?.(); } };
+        const target = 'href' in b ? b : { action: () => { if (close())
+                b.action?.(); } };
         return pushButton(box, { label: b.label, rect, isDefault, ...target });
     });
     const def = made[made.length - 1];
-    const others = [...document.body.children, ...root.children].filter((n) => n !== root && !n.inert);
-    for (const n of others)
-        n.inert = true;
+    const returnFocus = document.activeElement;
     root.appendChild(layer);
+    alerts.push({ layer, def });
+    block();
     const center = () => {
         const a = area();
         place(box, {
@@ -58,20 +87,27 @@ export function alert({ icon, message, buttons }) {
     };
     center();
     const stopCentering = onResize(center);
+    // A focused button handles its own keys, modified ones included; Return
+    // anywhere else in the alert presses the default.
     const onKey = (e) => {
-        if (['Enter', 'Escape', ' '].includes(e.key)) {
-            e.preventDefault();
-            def.press();
-        }
+        if (e.key !== 'Enter' || alerts.at(-1)?.layer !== layer || made.includes(document.activeElement))
+            return;
+        e.preventDefault();
+        def.press();
     };
     addEventListener('keydown', onKey);
-    def.focus();
+    // Returns false if the alert was already closed.
     function close() {
+        if (!layer.isConnected)
+            return false;
         removeEventListener('keydown', onKey);
         stopCentering();
         layer.remove();
-        for (const n of others)
-            n.inert = false;
+        alerts.splice(alerts.findIndex((a) => a.layer === layer), 1);
+        block();
+        if (returnFocus instanceof HTMLElement && returnFocus.isConnected && !returnFocus.closest('[inert]'))
+            returnFocus.focus();
+        return true;
     }
-    return { buttons: made, close };
+    return { buttons: made, close: () => void close() };
 }
