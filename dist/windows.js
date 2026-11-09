@@ -40,6 +40,7 @@ export class DesktopWindow {
     #placed = false;
     #zoomed = null;
     #opening = null;
+    #wanted = false; // whether the last call was show() rather than hide()
     #returnFocus = null;
     // The title may be empty, for a window without one.
     constructor(title, size, { info = false, labels = {} } = {}) {
@@ -132,12 +133,15 @@ export class DesktopWindow {
     }
     /** Zooms open from the opener, or comes to the front if already open. */
     async show() {
+        this.#wanted = true;
         if (this.el.isConnected)
             return this.activate();
         this.#opening ??= this.#open().finally(() => { this.#opening = null; });
         return this.#opening;
     }
+    /** Closes the window, or stops it opening if it is still zooming open. */
     hide() {
+        this.#wanted = false;
         const index = openWindows.indexOf(this);
         if (index < 0)
             return;
@@ -190,6 +194,8 @@ export class DesktopWindow {
             this.#placeFirst();
         this.#clamp();
         await zoomRects(this.opener?.rect(), this.#rect);
+        if (!this.#wanted)
+            return;
         screen().appendChild(this.el);
         openWindows.push(this);
         this.#layout();

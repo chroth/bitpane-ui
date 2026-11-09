@@ -71,6 +71,7 @@ export class DesktopWindow {
   #placed = false;
   #zoomed: Rect | null = null;
   #opening: Promise<void> | null = null;
+  #wanted = false; // whether the last call was show() rather than hide()
   #returnFocus: Element | null = null;
 
   // The title may be empty, for a window without one.
@@ -163,12 +164,15 @@ export class DesktopWindow {
 
   /** Zooms open from the opener, or comes to the front if already open. */
   async show(): Promise<void> {
+    this.#wanted = true;
     if (this.el.isConnected) return this.activate();
     this.#opening ??= this.#open().finally(() => { this.#opening = null; });
     return this.#opening;
   }
 
+  /** Closes the window, or stops it opening if it is still zooming open. */
   hide(): void {
+    this.#wanted = false;
     const index = openWindows.indexOf(this);
     if (index < 0) return;
     const hadFocus = this.el.contains(document.activeElement);
@@ -216,6 +220,7 @@ export class DesktopWindow {
     if (!this.#placed) this.#placeFirst();
     this.#clamp();
     await zoomRects(this.opener?.rect(), this.#rect);
+    if (!this.#wanted) return;
     screen().appendChild(this.el);
     openWindows.push(this);
     this.#layout();

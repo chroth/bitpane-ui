@@ -251,6 +251,21 @@ describe('windows', () => {
     await close(page);
   });
 
+  test('hide() stops a window that is still opening; show() again reopens it', async () => {
+    const page = await open('desktop');
+    const r = await page.evaluate(async () => {
+      const w = new t.api.DesktopWindow('Second', [200, 100]);
+      w.show(); w.hide();
+      t.hd.show(); setTimeout(() => t.hd.hide(), 50);
+      await new Promise((done) => setTimeout(done, 600));
+      const stopped = [w.el.isConnected, t.hd.el.isConnected];
+      w.show(); w.hide(); await w.show();
+      return { stopped, reopened: w.el.isConnected };
+    });
+    assert.deepEqual(r, { stopped: [false, false], reopened: true });
+    await close(page);
+  });
+
   test('setRect() moves and resizes at once; rect is a copy', async () => {
     const page = await open('window');
     const box = await page.evaluate(() => {
