@@ -542,6 +542,12 @@ describe('controls', () => {
     assert.equal(await file.getAttribute('aria-expanded'), 'false');
     await page.keyboard.press('ArrowRight');
     assert.equal(await page.evaluate(() => document.activeElement.textContent), 'Edit');
+    await file.click();
+    await page.keyboard.press('ArrowRight');
+    assert.equal(await page.evaluate(() => document.activeElement.textContent), 'Undo', 'the next menu did not open');
+    await page.keyboard.press('ArrowLeft');
+    assert.equal(await page.evaluate(() => document.activeElement.textContent), 'New');
+    await page.keyboard.press('Escape');
     await page.evaluate(() => t.removeMenu());
     assert.equal(await page.locator('.menu-bar').count(), 0);
     assert.deepEqual(await page.evaluate(() => t.area()), before);

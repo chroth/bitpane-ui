@@ -13,6 +13,7 @@ export function menuBar(menus, { label = 'Application menu' } = {}) {
     bar.setAttribute('aria-label', label);
     let active = null;
     const triggers = [];
+    const openers = new Map();
     const close = (restoreFocus = false) => {
         if (!active)
             return;
@@ -66,6 +67,7 @@ export function menuBar(menus, { label = 'Application menu' } = {}) {
                 popup.style.left = -Math.ceil(overflow / (bar.getBoundingClientRect().width / bar.offsetWidth)) + 'px';
             (last ? items.at(-1) : items[0])?.focus();
         };
+        openers.set(trigger, () => open());
         trigger.addEventListener('click', () => (active?.trigger === trigger ? close(true) : open()));
         trigger.addEventListener('keydown', (e) => {
             if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
@@ -84,6 +86,7 @@ export function menuBar(menus, { label = 'Application menu' } = {}) {
             }
         });
     }
+    // Left and Right move between menus, opening the next one if one was open.
     const onKey = (e) => {
         if (e.key === 'Escape') {
             e.preventDefault();
@@ -96,8 +99,12 @@ export function menuBar(menus, { label = 'Application menu' } = {}) {
             const current = active?.trigger ?? document.activeElement;
             const index = triggers.indexOf(current);
             const next = triggers[(index + (e.key === 'ArrowRight' ? 1 : -1) + triggers.length) % triggers.length];
+            const wasOpen = active !== null;
             close();
-            next?.focus();
+            if (wasOpen)
+                openers.get(next)();
+            else
+                next.focus();
         }
     };
     const outside = (e) => { if (!bar.contains(e.target))

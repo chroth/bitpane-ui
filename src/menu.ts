@@ -27,6 +27,7 @@ export function menuBar(menus: readonly Menu[], { label = 'Application menu' } =
   bar.setAttribute('aria-label', label);
   let active: { trigger: HTMLButtonElement; popup: HTMLDivElement } | null = null;
   const triggers: HTMLButtonElement[] = [];
+  const openers = new Map<HTMLButtonElement, () => void>();
   const close = (restoreFocus = false): void => {
     if (!active) return;
     const { trigger, popup } = active;
@@ -76,6 +77,7 @@ export function menuBar(menus: readonly Menu[], { label = 'Application menu' } =
       if (overflow > 0) popup.style.left = -Math.ceil(overflow / (bar.getBoundingClientRect().width / bar.offsetWidth)) + 'px';
       (last ? items.at(-1) : items[0])?.focus();
     };
+    openers.set(trigger, () => open());
     trigger.addEventListener('click', () => (active?.trigger === trigger ? close(true) : open()));
     trigger.addEventListener('keydown', (e) => {
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
@@ -94,6 +96,7 @@ export function menuBar(menus: readonly Menu[], { label = 'Application menu' } =
       }
     });
   }
+  // Left and Right move between menus, opening the next one if one was open.
   const onKey = (e: KeyboardEvent): void => {
     if (e.key === 'Escape') { e.preventDefault(); close(true); }
     if (e.key === 'Tab') close();
@@ -101,9 +104,11 @@ export function menuBar(menus: readonly Menu[], { label = 'Application menu' } =
       e.preventDefault();
       const current = active?.trigger ?? (document.activeElement as HTMLButtonElement);
       const index = triggers.indexOf(current);
-      const next = triggers[(index + (e.key === 'ArrowRight' ? 1 : -1) + triggers.length) % triggers.length];
+      const next = triggers[(index + (e.key === 'ArrowRight' ? 1 : -1) + triggers.length) % triggers.length]!;
+      const wasOpen = active !== null;
       close();
-      next?.focus();
+      if (wasOpen) openers.get(next)!();
+      else next.focus();
     }
   };
   const outside = (e: PointerEvent): void => { if (!bar.contains(e.target as Node)) close(); };
