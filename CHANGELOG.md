@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.11.1
+- Ctrl, Cmd, Shift or Alt with Enter on an application icon or an alert link button is left to the browser, so it opens a new tab or window.
+- Alerts: keys act on the focused button, and Return elsewhere presses the default. Escape no longer presses it. An action runs once however quickly it is pressed, and focus goes back to where it was when the alert closes.
+- Alerts keep windows opened while they are up inert too, and nested alerts can close in any order.
+- A window takes focus when it opens, and gives it back to where it came from when it closes.
+- Left and Right with a menu open open the neighbouring menu.
+
 ## 0.11.0
 - **Breaking:** `DesktopWindow` `rect` is read-only; move and resize with `setRect({ x, y, w, h })`. `layout()` is removed: scroll bars follow the content by themselves.
 - A link `href` that is not a string is converted once, so the checked URL is the one used.
