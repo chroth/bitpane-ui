@@ -1,9 +1,23 @@
 # Changelog
 
-## 0.11.1
+## 0.12.0
+- **Breaking:** bad input that was accepted before now throws before anything changes:
+  - `setRect()` values and keys, and button `x` and `y`.
+  - Item `kb`, and application items without an `href`.
+  - A window opened by two icons, and a second disk or Trash.
+- Folder windows, the Trash, text windows and the menu bar check all their input before building anything. `area()` returns a copy.
+- Window content scrolls by wheel, touch and keyboard, with the browser's scroll bars hidden behind the window's own:
+  - Touch pans only content that can scroll.
+  - The thumb drags, and holding the gray track pages toward the pointer.
+- `hide()` stops a window that is still zooming open.
+- Drags follow only the pointer that started them, so a second finger no longer moves or ends them.
+- A zoomed window keeps filling the screen when the screen changes size.
+- Accented letters are drawn instead of question marks: all of Latin-1 and Latin Extended-A, Romanian ș and ț, and ¡ ¿ « » € £ °.
 - Ctrl, Cmd, Shift or Alt with Enter on an application icon or an alert link button is left to the browser, so it opens a new tab or window.
-- Alerts: keys act on the focused button, and Return elsewhere presses the default. Escape no longer presses it. An action runs once however quickly it is pressed, and focus goes back to where it was when the alert closes.
-- Alerts keep windows opened while they are up inert too, and nested alerts can close in any order.
+- Alerts:
+  - Keys act on the focused button, and Return elsewhere presses the default. Escape no longer presses it.
+  - An action runs once, however quickly it is pressed, and focus goes back to where it was when the alert closes.
+  - Windows opened while an alert is up are inert too, and nested alerts can close in any order.
 - A window takes focus when it opens, and gives it back to where it came from when it closes.
 - Left and Right with a menu open open the neighbouring menu.
 
