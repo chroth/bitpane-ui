@@ -3,7 +3,7 @@
 
 import { icon, type IconArt, type IconRows } from './bitmap.js';
 import * as check from './check.js';
-import { el, place, bitmapText, nearest } from './dom.js';
+import { el, place, bitmapText, nearest, isModified } from './dom.js';
 import { measure } from './font.js';
 import { screen, area, onResize, pointer, rectOf, track, outline, zoomRects } from './screen.js';
 import { DesktopWindow, windowAt, type Opener, type Size, type WindowOptions } from './windows.js';
@@ -177,18 +177,15 @@ class Icon implements Opener {
       this.el = el('div', 'icon');
       this.el.setAttribute('role', 'button');
     } else {
-      // A plain link underneath: modified and middle clicks open a new tab
-      // as usual, while a plain click only selects.
+      // A plain link underneath: modified clicks and keys and middle clicks
+      // open a new tab as usual, while a plain click only selects.
       const a = el('a', 'icon');
       a.href = href;
       a.draggable = false;
       a.addEventListener('click', (e) => {
-        if (e.detail === 0) {
-          e.preventDefault();
-          void this.open();
-        } else if (e.button === 0 && !(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)) {
-          e.preventDefault();
-        }
+        if (e.button !== 0 || isModified(e)) return;
+        e.preventDefault();
+        if (e.detail === 0) void this.open(); // keyboard activation
       });
       this.el = a;
     }
@@ -205,6 +202,7 @@ class Icon implements Opener {
     lbl.style.left = Math.floor((32 - this.#labelW) / 2) + 'px';
     this.el.addEventListener('pointerdown', (e) => this.#down(e));
     this.el.addEventListener('keydown', (e) => {
+      if (href !== undefined && e.key === 'Enter' && isModified(e)) return;
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         this.folder?.desktop.select(this);

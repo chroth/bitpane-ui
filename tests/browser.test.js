@@ -420,6 +420,19 @@ describe('desktop', () => {
     await close(page);
   });
 
+  test('modified Enter on applications is left to the browser', async () => {
+    const page = await open('apps');
+    await openIcon(page, 'HD');
+    await icon(page, 'Game').focus();
+    const [tab] = await Promise.all([page.context().waitForEvent('page'), page.keyboard.press('Control+Enter')]);
+    await tab.waitForLoadState();
+    assert.match(tab.url(), /#launched$/);
+    await page.waitForTimeout(600);
+    assert.equal(await page.evaluate(() => location.hash), '#apps');
+    await tab.close();
+    await close(page);
+  });
+
   test('custom icon art is drawn, and bad art is rejected', async () => {
     const page = await open('apps');
     await openIcon(page, 'HD');
