@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.12.1
+- Alerts are built on a native modal `<dialog>`. The browser keeps everything else inert and returns focus when an alert closes. They look and behave as before.
+
 ## 0.12.0
 - **Breaking:** bad input that was accepted before now throws before anything changes:
   - `setRect()` values and keys, and button `x` and `y`.

@@ -1,40 +1,13 @@
-// Modal alerts. A transparent layer over the whole screen swallows pointer
-// input and everything else is made inert, so nothing outside the newest
-// alert can be clicked, focused or reached with the keyboard while it is open.
+// Modal alerts: a native modal <dialog>, so the browser makes everything else
+// inert, windows opened later included, keeps focus inside, and returns focus
+// when it closes. It sits in the top layer, outside the scaled screen, so
+// the stylesheet scales it to match.
 import { icon as iconArt } from './bitmap.js';
 import { pushButton } from './button.js';
 import { el, place, bitmapText } from './dom.js';
 import { measure } from './font.js';
 import { screen, area, onResize } from './screen.js';
 const PAD = 4; // the dialog's double border
-// Open alerts, newest last. While any is open, everything on the page but
-// the newest is inert, windows opened later included, and focus stays in it.
-// Only what was made inert here is made live again.
-const alerts = [];
-const madeInert = new Set();
-let watcher = null;
-function block() {
-    const root = screen(), top = alerts.at(-1);
-    for (const n of madeInert) {
-        if (top && n !== top.layer)
-            continue;
-        n.inert = false;
-        madeInert.delete(n);
-    }
-    if (!top)
-        return watcher?.disconnect();
-    for (const n of [...document.body.children, ...root.children]) {
-        if (n === root || n === top.layer || n.inert)
-            continue;
-        n.inert = true;
-        madeInert.add(n);
-    }
-    if (!top.layer.contains(document.activeElement))
-        top.def.focus();
-    watcher ??= new MutationObserver(block);
-    watcher.observe(document.body, { childList: true });
-    watcher.observe(root, { childList: true });
-}
 export function alert({ icon, message, buttons }) {
     if (!buttons.length)
         throw new Error('An alert needs at least one button');
@@ -44,10 +17,9 @@ export function alert({ icon, message, buttons }) {
     const row = widths.reduce((sum, w) => sum + w + 12, -12);
     const w = Math.max(340, textX + Math.max(...lines.map((l) => measure(l, 'system'))) + 20, row + 2 * (PAD + 16));
     const h = Math.max(20 + lines.length * 16, icon ? 46 : 0) + 12 + 20 + 14 + 2 * PAD;
-    const root = screen();
-    const layer = el('div', 'modal');
-    const box = el('div', 'dlg', layer);
+    const box = el('dialog', 'dlg');
     box.setAttribute('role', 'alertdialog');
+    box.tabIndex = -1; // so a click anywhere on it keeps focus in the alert
     if (icon) {
         const art = iconArt(icon).normal;
         box.appendChild(art);
@@ -72,41 +44,41 @@ export function alert({ icon, message, buttons }) {
         return pushButton(box, { label: b.label, rect, isDefault, ...target });
     });
     const def = made[made.length - 1];
-    const returnFocus = document.activeElement;
-    root.appendChild(layer);
-    alerts.push({ layer, def });
-    block();
-    const center = () => {
-        const a = area();
-        place(box, {
-            x: a.x + Math.floor((a.w - w) / 2),
-            y: a.y + Math.max(8, Math.min(Math.floor((a.h - h) / 3), a.h - h - 8)),
-            w,
-            h,
-        });
-    };
-    center();
-    const stopCentering = onResize(center);
+    def.autofocus = true;
     // A focused button handles its own keys, modified ones included; Return
     // anywhere else in the alert presses the default.
-    const onKey = (e) => {
-        if (e.key !== 'Enter' || alerts.at(-1)?.layer !== layer || made.includes(document.activeElement))
+    box.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' || made.includes(document.activeElement))
             return;
         e.preventDefault();
         def.press();
+    });
+    // Only a button closes it: not Escape (closedby, or cancel where that is
+    // unsupported), and if a browser closes it anyway it opens again.
+    let closing = false;
+    box.setAttribute('closedby', 'none');
+    box.addEventListener('cancel', (e) => e.preventDefault());
+    box.addEventListener('close', () => { if (!closing)
+        box.showModal(); });
+    // In screen pixels; the stylesheet turns --x and --y into page pixels.
+    const center = () => {
+        const a = area();
+        box.style.setProperty('--x', a.x + Math.floor((a.w - w) / 2) + 'px');
+        box.style.setProperty('--y', a.y + Math.max(8, Math.min(Math.floor((a.h - h) / 3), a.h - h - 8)) + 'px');
     };
-    addEventListener('keydown', onKey);
+    place(box, { x: 0, y: 0, w, h });
+    center();
+    const stopCentering = onResize(center);
+    screen().appendChild(box); // inherits the screen's scale and cursor
+    box.showModal();
     // Returns false if the alert was already closed.
     function close() {
-        if (!layer.isConnected)
+        if (closing)
             return false;
-        removeEventListener('keydown', onKey);
+        closing = true;
         stopCentering();
-        layer.remove();
-        alerts.splice(alerts.findIndex((a) => a.layer === layer), 1);
-        block();
-        if (returnFocus instanceof HTMLElement && returnFocus.isConnected && !returnFocus.closest('[inert]'))
-            returnFocus.focus();
+        box.close();
+        box.remove();
         return true;
     }
     return { buttons: made, close: () => void close() };
