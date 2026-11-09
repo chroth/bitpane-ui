@@ -38,9 +38,9 @@ export declare class Desktop {
     #private;
     constructor({ capacity, text, labels }?: DesktopOptions);
     folderWindow(title: string, items: readonly Item[], size?: Size): FolderWindow;
-    /** The disk icon, in the top right corner of the desktop. */
+    /** The disk icon, in the top right corner of the desktop. There is one. */
     disk(label: string, folder: FolderWindow): void;
-    /** The Trash, in the bottom right corner; it looks full while it holds something. */
+    /** The Trash, in the bottom right corner; it looks full while it holds something. There is one. */
     trash(items: readonly Item[]): void;
 }
 export {};

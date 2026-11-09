@@ -9,6 +9,11 @@ export function text(value, what) {
         throw new RangeError(`${what} is longer than ${MAX_TEXT} characters`);
     return value;
 }
+export function amount(value, what) {
+    if (!Number.isFinite(value) || value < 0)
+        throw new RangeError(`${what} must be a number of 0 or more`);
+    return value;
+}
 export function pixels(value, what, min = -MAX_PIXELS) {
     if (!Number.isFinite(value) || value < min || value > MAX_PIXELS) {
         throw new RangeError(`${what} must be a number from ${min} to ${MAX_PIXELS}`);
@@ -22,6 +27,8 @@ export function pixels(value, what, min = -MAX_PIXELS) {
 // cannot disguise a scheme; anything without a scheme is relative and takes
 // the page's own.
 export function href(link, what) {
+    if (link.href == null)
+        throw new TypeError(`${what} is missing`);
     const value = String(link.href);
     const allowed = Array.from(link.dangerouslyAllowSchemes ?? [], String);
     for (const s of allowed) {

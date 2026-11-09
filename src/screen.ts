@@ -70,7 +70,7 @@ function fit(): void {
 /** The visible screen area, clear of the menu bar and the safe-area insets. */
 export function area(): Rect {
   screen();
-  return usable;
+  return { ...usable };
 }
 
 /** Calls `fn` whenever area() changes. Returns a function that stops it. */

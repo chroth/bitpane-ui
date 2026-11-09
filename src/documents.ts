@@ -10,8 +10,11 @@ import { DesktopWindow, windowSize, type WindowOptions } from './windows.js';
 export type TextLine = string | ({ text: string } & check.Link);
 
 export function textWindow(title: string, lines: readonly TextLine[], options?: WindowOptions): DesktopWindow {
-  // Links are checked before the window exists, so a bad one leaves no trace.
-  const hrefs = lines.map((l) => (typeof l === 'string' ? null : check.href(l, 'Link href')));
+  // Lines are checked before the window exists, so a bad one leaves no trace.
+  const hrefs = lines.map((l) => {
+    check.text(typeof l === 'string' ? l : l.text, 'Text');
+    return typeof l === 'string' ? null : check.href(l, 'Link href');
+  });
   const widest = Math.max(...lines.map((l) => measure(typeof l === 'string' ? l : l.text, 'system')));
   const win = new DesktopWindow(title, windowSize([Math.max(242, widest + 52), lines.length * 16 + 48], options), options);
   const doc = el('div', 'doc', win.content);

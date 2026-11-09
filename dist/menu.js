@@ -8,8 +8,8 @@ let mounted = false;
 export function menuBar(menus, { label = 'Application menu' } = {}) {
     if (mounted)
         throw new Error('There is only one menu bar');
-    mounted = true;
-    const bar = el('nav', 'menu-bar', screen());
+    // Built off the page, so a bad label leaves no trace.
+    const bar = el('nav', 'menu-bar');
     bar.setAttribute('aria-label', label);
     let active = null;
     const triggers = [];
@@ -116,6 +116,8 @@ export function menuBar(menus, { label = 'Application menu' } = {}) {
         const a = area();
         Object.assign(bar.style, { left: a.x + 'px', top: a.y - HEIGHT + 'px', width: a.w + 'px' });
     };
+    screen().appendChild(bar);
+    mounted = true;
     reserveMenu(HEIGHT);
     layout();
     const stop = onResize(layout);

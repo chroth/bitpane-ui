@@ -764,4 +764,77 @@ describe('secure by design', () => {
     });
     await close(page);
   });
+
+  test('bad window, button, text and menu input fails before anything changes', async () => {
+    const page = await open('window');
+    const results = await page.evaluate(() => {
+      const count = () => document.querySelectorAll('.win, .btn, .menu-bar').length;
+      const before = { count: count(), rect: t.notes.rect };
+      const attempt = (f) => { try { f(); return 'no error'; } catch (e) { return e.message; } };
+      const rect = { x: 0, y: 0, w: 60, h: 20 };
+      const r = [
+        attempt(() => t.notes.setRect({ x: NaN })),
+        attempt(() => t.notes.setRect({ w: 0 })),
+        attempt(() => t.notes.setRect({ x: 50, foo: 1 })),
+        attempt(() => t.api.pushButton(document.body, { label: 'OK', rect: { ...rect, x: NaN }, action() {} })),
+        attempt(() => t.api.textWindow('X', ['fine', 'x'.repeat(501)]).show()),
+        attempt(() => t.api.menuBar([{ label: 'x'.repeat(501), items: [] }])),
+      ];
+      const a = t.area();
+      a.w = 1;
+      return { r, changed: count() - before.count, rectKept: JSON.stringify(t.notes.rect) === JSON.stringify(before.rect), areaKept: t.area().w > 1, menuStillMounts: typeof t.api.menuBar([]) };
+    });
+    assert.deepEqual(results, {
+      r: [
+        'Window x must be a number from -10000 to 10000',
+        'Window w must be a number from 1 to 10000',
+        'setRect takes x, y, w and h, not "foo"',
+        'Button x must be a number from -10000 to 10000',
+        'Text is longer than 500 characters',
+        'Text is longer than 500 characters',
+      ],
+      changed: 0,
+      rectKept: true,
+      areaKept: true,
+      menuStillMounts: 'function',
+    });
+    await close(page);
+  });
+
+  test('bad desktop items fail before anything changes; a window has one icon, a desktop one disk and Trash', async () => {
+    const page = await open('desktop');
+    const results = await page.evaluate(() => {
+      const icons = () => document.querySelectorAll('.icon').length;
+      const before = icons();
+      const attempt = (f) => { try { f(); return 'no error'; } catch (e) { return e.message; } };
+      const fresh = new t.api.DesktopWindow('Fresh', [100, 100]);
+      const doc = (extra) => ({ label: 'Doc', kind: 'document', opens: fresh, ...extra });
+      const r = [
+        attempt(() => t.desktop.folderWindow('X', [doc(), { label: 'App', kind: 'application' }])),
+        attempt(() => t.desktop.folderWindow('X', [doc({ kb: NaN })])),
+        attempt(() => t.desktop.folderWindow('X', [doc({ kb: -1 })])),
+        attempt(() => t.desktop.folderWindow('X', [doc(), doc()])),
+        attempt(() => t.desktop.folderWindow('X', [doc({ opens: t.readme })])),
+        attempt(() => t.desktop.folderWindow('X', [doc({ opens: {} })])),
+        attempt(() => t.desktop.disk('HD2', t.desktop.folderWindow('Y', []))),
+        attempt(() => t.desktop.trash([])),
+      ];
+      return { r, freshUnclaimed: fresh.opener === null, changed: icons() - before };
+    });
+    assert.deepEqual(results, {
+      r: [
+        'Application href is missing',
+        'Item kb must be a number of 0 or more',
+        'Item kb must be a number of 0 or more',
+        'A window can be opened by only one icon',
+        'A window can be opened by only one icon',
+        'An icon must open a DesktopWindow',
+        'A Desktop has only one disk',
+        'A Desktop has only one Trash',
+      ],
+      freshUnclaimed: true,
+      changed: 0,
+    });
+    await close(page);
+  });
 });

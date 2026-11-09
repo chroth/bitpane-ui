@@ -130,8 +130,13 @@ export class DesktopWindow {
 
   /** Moves or resizes the window, keeping it inside the visible area. */
   setRect(changes: Partial<Rect>): void {
-    Object.assign(this.#rect, changes);
-    if (changes.x !== undefined || changes.y !== undefined) this.#placed = true;
+    const next = { ...this.#rect };
+    for (const key of Object.keys(changes)) {
+      if (key !== 'x' && key !== 'y' && key !== 'w' && key !== 'h') throw new TypeError(`setRect takes x, y, w and h, not "${key}"`);
+      next[key] = check.pixels(changes[key]!, `Window ${key}`, key === 'w' || key === 'h' ? 1 : undefined);
+    }
+    this.#rect = next;
+    if ('x' in changes || 'y' in changes) this.#placed = true;
     this.#zoomed = null;
     this.#layout();
   }

@@ -22,8 +22,8 @@ export interface Menu {
 /** Mounts the menu bar. Returns a function that removes it. */
 export function menuBar(menus: readonly Menu[], { label = 'Application menu' } = {}): () => void {
   if (mounted) throw new Error('There is only one menu bar');
-  mounted = true;
-  const bar = el('nav', 'menu-bar', screen());
+  // Built off the page, so a bad label leaves no trace.
+  const bar = el('nav', 'menu-bar');
   bar.setAttribute('aria-label', label);
   let active: { trigger: HTMLButtonElement; popup: HTMLDivElement } | null = null;
   const triggers: HTMLButtonElement[] = [];
@@ -118,6 +118,8 @@ export function menuBar(menus: readonly Menu[], { label = 'Application menu' } =
     const a = area();
     Object.assign(bar.style, { left: a.x + 'px', top: a.y - HEIGHT + 'px', width: a.w + 'px' });
   };
+  screen().appendChild(bar);
+  mounted = true;
   reserveMenu(HEIGHT);
   layout();
   const stop = onResize(layout);
