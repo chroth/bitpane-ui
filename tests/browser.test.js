@@ -433,6 +433,21 @@ describe('desktop', () => {
     await close(page);
   });
 
+  test('focus moves into a window that opens and back to its icon when it closes', async () => {
+    const page = await open('desktop');
+    await icon(page, 'HD').focus();
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(500);
+    assert.equal(await page.evaluate(() => document.activeElement.getAttribute('aria-label')), 'HD');
+    assert.equal(await page.evaluate(() => document.activeElement.classList.contains('win')), true, 'focus is not on the window');
+    await page.keyboard.press('Tab');
+    assert.equal(await page.evaluate(() => !!document.activeElement.closest('.win[aria-label=HD]')), true, 'Tab left the window');
+    await win(page, 'HD').locator('.close').focus();
+    await page.keyboard.press('Enter');
+    assert.equal(await page.evaluate(() => document.activeElement === document.querySelector('.icon[aria-label=HD]')), true);
+    await close(page);
+  });
+
   test('custom icon art is drawn, and bad art is rejected', async () => {
     const page = await open('apps');
     await openIcon(page, 'HD');

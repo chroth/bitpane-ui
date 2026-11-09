@@ -40,6 +40,7 @@ export class DesktopWindow {
     #placed = false;
     #zoomed = null;
     #opening = null;
+    #returnFocus = null;
     // The title may be empty, for a window without one.
     constructor(title, size, { info = false, labels = {} } = {}) {
         const [w, h] = size;
@@ -50,6 +51,7 @@ export class DesktopWindow {
         this.el = el('div', 'win');
         windowOf.set(this.el, this);
         this.el.setAttribute('role', 'dialog');
+        this.el.tabIndex = -1;
         if (title)
             this.el.setAttribute('aria-label', title);
         const tb = el('div', 'tb', this.el);
@@ -139,10 +141,19 @@ export class DesktopWindow {
         const index = openWindows.indexOf(this);
         if (index < 0)
             return;
+        const hadFocus = this.el.contains(document.activeElement);
         openWindows.splice(index, 1);
         this.el.remove();
         this.opener?.setOpen(false);
-        openWindows.at(-1)?.activate();
+        const next = openWindows.at(-1);
+        next?.activate();
+        if (hadFocus) {
+            const back = this.#returnFocus;
+            if (back instanceof HTMLElement && back.isConnected && !back.closest('[inert]'))
+                back.focus();
+            else
+                next?.el.focus();
+        }
         void zoomRects(this.#rect, this.opener?.rect());
         this.onHide?.();
     }
@@ -171,7 +182,9 @@ export class DesktopWindow {
     }
     /** Runs each time the window is about to open. */
     beforeOpen() { }
+    // Focus moves into the window, and goes back where it came from on hide.
     async #open() {
+        this.#returnFocus = document.activeElement;
         this.beforeOpen();
         if (!this.#placed)
             this.#placeFirst();
@@ -181,6 +194,7 @@ export class DesktopWindow {
         openWindows.push(this);
         this.#layout();
         this.activate();
+        this.el.focus();
         this.opener?.setOpen(true);
         this.onShow?.();
     }

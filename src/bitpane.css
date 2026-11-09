@@ -82,6 +82,7 @@ canvas.px, img.px {
 #screen :focus { outline: none; }
 #screen :focus-visible { outline: 1px dotted #000; outline-offset: 1px; }
 #screen .btn:focus-visible { outline: none; }
+#screen .win:focus-visible { outline: none; } /* the active title bar shows it */
 
 .corner { position: absolute; z-index: 3000000; pointer-events: none; }
 .corner.tl { left: 0; top: 0; }
