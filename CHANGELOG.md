@@ -5,6 +5,7 @@
 - **Breaking:** `pushButton(parent, { label, rect, isDefault, action })`; with `href` instead of `action` it is a link. `linkButton` is removed.
 - **Breaking:** `dangerouslyAllowSchemes` goes next to each `href` (text-window line, button, alert button, application item) instead of on the call.
 - **Breaking:** `capacity` moves from `disk()` to `new Desktop({ capacity })`.
+- **Breaking:** `DesktopWindow` `rect` is read-only; move and resize with `setRect({ x, y, w, h })`. `layout()` is removed: scroll bars follow the content by themselves.
 - Runtime checks that types make redundant are gone; text length, sizes, URLs and icon art are still checked.
 - A link `href` that is not a string is converted once, so the checked URL is the one used.
 

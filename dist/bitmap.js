@@ -295,7 +295,7 @@ export function icon(art) {
     };
 }
 // --- Push buttons ---
-export function button(label, w, h, { isDefault = false, pressed = false } = {}) {
+export function buttonArt(label, w, h, { isDefault = false, pressed = false } = {}) {
     const pad = isDefault ? 4 : 0;
     const W = w + pad * 2, H = h + pad * 2;
     const body = new Bitmap(W, H);
