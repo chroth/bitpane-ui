@@ -314,6 +314,16 @@ describe('windows', () => {
     await close(page);
   });
 
+  test('a zoomed window keeps filling the screen as it grows', async () => {
+    const page = await open('window', { width: 700, height: 450 });
+    await win(page, 'Notes').locator('.zoom').click();
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.waitForTimeout(500);
+    const [r, a] = await page.evaluate(() => [t.notes.rect, t.area()]);
+    assert.deepEqual(r, { x: a.x + 4, y: a.y + 4, w: a.w - 10, h: a.h - 10 });
+    await close(page);
+  });
+
   test('close boxes have finger-sized touch targets on touch screens', async () => {
     const page = await open('window', { width: 390, height: 664, isMobile: true, hasTouch: true, deviceScaleFactor: 3 });
     const box = await center(win(page, 'Notes').locator('.close'));

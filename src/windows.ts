@@ -119,6 +119,7 @@ export class DesktopWindow {
     new ResizeObserver(update).observe(this.content);
     new MutationObserver(update).observe(this.content, { childList: true, subtree: true, attributes: true, characterData: true });
     onResize(() => {
+      if (this.#zoomed) this.#rect = this.#zoomRect();
       if (this.el.isConnected) this.#layout();
     });
   }
@@ -208,11 +209,16 @@ export class DesktopWindow {
       this.#rect = this.#zoomed;
       this.#zoomed = null;
     } else {
-      const a = area();
       this.#zoomed = { ...this.#rect };
-      this.#rect = { x: a.x + 4, y: a.y + 4, w: a.w - 10, h: a.h - 10 };
+      this.#rect = this.#zoomRect();
     }
     this.#layout();
+  }
+
+  // A zoomed window fills the visible area, and keeps filling it as it changes.
+  #zoomRect(): Rect {
+    const a = area();
+    return { x: a.x + 4, y: a.y + 4, w: a.w - 10, h: a.h - 10 };
   }
 
   /** Runs each time the window is about to open. */
