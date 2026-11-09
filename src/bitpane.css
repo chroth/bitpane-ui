@@ -92,7 +92,7 @@ canvas.px, img.px {
 
 /* --- Icons --- */
 
-.icon { position: absolute; width: 32px; height: 32px; }
+.icon { position: absolute; width: 32px; height: 32px; touch-action: none; }
 .icon .img { position: relative; width: 32px; height: 32px; }
 .icon .img canvas { position: absolute; left: 0; top: 0; }
 .icon .img .sel, .icon .img .opened { visibility: hidden; }
@@ -175,8 +175,16 @@ canvas.px, img.px {
   left: 0;
   right: 16px;
   bottom: 16px;
-  overflow: hidden;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none; /* the window draws its own */
+  touch-action: none;
 }
+.win .content::-webkit-scrollbar { display: none; }
+/* Touch pans only content that can scroll, so a canvas keeps its touches. */
+.win.sv .content { touch-action: pan-y; }
+.win.sh .content { touch-action: pan-x; }
+.win.sv.sh .content { touch-action: pan-x pan-y; }
 
 .win .vs, .win .hs, .win .grow { position: absolute; background: #fff; }
 .win .vs { right: 0; bottom: 15px; width: 16px; border-left: 1px solid #000; border-bottom: 1px solid #000; }

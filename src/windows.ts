@@ -113,6 +113,7 @@ export class DesktopWindow {
       if (e.button === 0 && !(e.target as Element).closest('button')) this.#drag(e);
     });
     grow.addEventListener('pointerdown', (e) => this.#resize(e));
+    this.el.addEventListener('keydown', (e) => this.#scrollKey(e));
     // Scroll bars follow the content without the page having to ask.
     const update = (): void => this.#updateScroll();
     this.content.addEventListener('scroll', update);
@@ -284,29 +285,74 @@ export class DesktopWindow {
     return btn;
   }
 
+  // Arrows scroll a line and the gray track a page, repeating while held;
+  // the thumb drags. The content also scrolls natively by wheel, touch and keys.
   #scrollBar(cls: 'vs' | 'hs', back: Direction, forward: Direction): ScrollBar {
     const bar = el('div', cls, this.el);
-    el('div', 'track', bar);
+    const trackEl = el('div', 'track', bar);
     const thumb = el('div', 'thumb', bar);
+    const vertical = cls === 'vs';
+    const c = this.content;
+    const scrollBy = (d: number): void => {
+      if (vertical) c.scrollTop += d;
+      else c.scrollLeft += d;
+    };
+    const hold = (e: PointerEvent, step: () => void, box?: HTMLElement): void => {
+      e.stopPropagation();
+      this.activate();
+      box?.classList.add('down');
+      step();
+      const timer = setInterval(step, 80);
+      track(e, { end: () => { clearInterval(timer); box?.classList.remove('down'); } });
+    };
     for (const [dir, pos, sign] of [[back, 'a1', -1], [forward, 'a2', 1]] as const) {
       const box = el('div', 'arrow ' + pos, bar);
       const dark = arrow(dir, true);
       dark.classList.add('pressed');
       box.append(arrow(dir, false), dark);
-      box.addEventListener('pointerdown', (e) => {
-        e.stopPropagation();
-        this.activate();
-        box.classList.add('down');
-        const step = (): void => {
-          if (cls === 'vs') this.content.scrollTop += sign * 16;
-          else this.content.scrollLeft += sign * 16;
-        };
-        step();
-        const timer = setInterval(step, 80);
-        track(e, { end: () => { clearInterval(timer); box.classList.remove('down'); } });
-      });
+      box.addEventListener('pointerdown', (e) => hold(e, () => scrollBy(sign * 16), box));
     }
+    // Pages toward the pointer until the thumb reaches it.
+    trackEl.addEventListener('pointerdown', (e) => {
+      const at = vertical ? e.clientY : e.clientX;
+      const r = thumb.getBoundingClientRect();
+      const sign = at < (vertical ? r.top : r.left) ? -1 : 1;
+      hold(e, () => {
+        const t = thumb.getBoundingClientRect();
+        const past = sign < 0 ? at >= (vertical ? t.top : t.left) : at <= (vertical ? t.bottom : t.right);
+        if (!past) scrollBy(sign * ((vertical ? c.clientHeight : c.clientWidth) - 16));
+      });
+    });
+    thumb.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      this.activate();
+      const start = vertical ? c.scrollTop : c.scrollLeft;
+      const range = vertical ? c.scrollHeight - c.clientHeight : c.scrollWidth - c.clientWidth;
+      const travel = Math.max(1, (vertical ? bar.clientHeight : bar.clientWidth) - 46);
+      track(e, {
+        move: (dx, dy) => {
+          const v = start + ((vertical ? dy : dx) * range) / travel;
+          if (vertical) c.scrollTop = v;
+          else c.scrollLeft = v;
+        },
+      });
+    });
     return { el: bar, thumb };
+  }
+
+  // Scroll keys on the window itself; inside the content the browser handles them.
+  #scrollKey(e: KeyboardEvent): void {
+    if (e.target !== this.el) return;
+    const c = this.content, line = 16, page = c.clientHeight - 16;
+    const moves: Record<string, [number, number]> = {
+      ArrowUp: [0, -line], ArrowDown: [0, line], ArrowLeft: [-line, 0], ArrowRight: [line, 0],
+      PageUp: [0, -page], PageDown: [0, page], ' ': [0, e.shiftKey ? -page : page],
+      Home: [0, -c.scrollHeight], End: [0, c.scrollHeight],
+    };
+    const move = moves[e.key];
+    if (!move) return;
+    e.preventDefault();
+    c.scrollBy(...move);
   }
 
   #updateScroll(): void {

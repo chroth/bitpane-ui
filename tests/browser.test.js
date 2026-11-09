@@ -324,6 +324,79 @@ describe('windows', () => {
     await close(page);
   });
 
+  test('content scrolls by wheel, keys, thumb and track, without native scroll bars', async () => {
+    const page = await open('window');
+    await page.evaluate(() => {
+      const tall = document.createElement('div');
+      tall.style.cssText = 'position: absolute; top: 0; left: 0; width: 10px; height: 2000px';
+      t.notes.content.append(tall);
+    });
+    const top = () => page.evaluate(() => t.notes.content.scrollTop);
+    const content = await center(win(page, 'Notes').locator('.content'));
+    await page.mouse.move(content.x, content.y);
+    await page.mouse.wheel(0, 300);
+    await page.waitForFunction(() => t.notes.content.scrollTop === 300);
+    assert.equal(await page.evaluate(() => t.notes.content.offsetWidth - t.notes.content.clientWidth), 0, 'a native scroll bar shows');
+    await win(page, 'Notes').focus();
+    await page.keyboard.press('Home');
+    await page.keyboard.press('ArrowDown');
+    assert.equal(await top(), 16);
+    await page.keyboard.press('End');
+    assert.equal(await top(), await page.evaluate(() => t.notes.content.scrollHeight - t.notes.content.clientHeight));
+    await page.keyboard.press('Home');
+    const atTop = () => page.waitForFunction(() => t.notes.el.querySelector('.vs .thumb').style.top === '15px');
+    await atTop();
+    const thumb = await center(win(page, 'Notes').locator('.vs .thumb'));
+    await drag(page, thumb, { x: thumb.x, y: thumb.y + 60 });
+    assert.ok(await top() > 500, 'dragging the thumb did not scroll');
+    await page.keyboard.press('Home');
+    await atTop();
+    const bar = await win(page, 'Notes').locator('.vs').boundingBox();
+    await page.mouse.click(bar.x + bar.width / 2, bar.y + bar.height - 40);
+    assert.equal(await top(), await page.evaluate(() => t.notes.content.clientHeight - 16), 'clicking the track did not page down');
+    await close(page);
+  });
+
+  test('touch pans content only when it can scroll, and icons still drag', async () => {
+    let page = await open('window', { hasTouch: true });
+    const cdp = await page.context().newCDPSession(page);
+    const swipe = async ({ x, y }, dx, dy) => {
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+      for (let i = 1; i <= 10; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x + (dx * i) / 10, y: y + (dy * i) / 10 }] });
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      await page.waitForTimeout(200);
+    };
+    await page.evaluate(() => { t.cancels = 0; t.notes.content.addEventListener('pointercancel', () => t.cancels++); });
+    const at = await center(win(page, 'Notes').locator('.content'));
+    await swipe(at, 0, -150);
+    assert.equal(await page.evaluate(() => t.cancels), 0, 'content that cannot scroll lost its touch');
+    await page.evaluate(() => {
+      const tall = document.createElement('div');
+      tall.style.cssText = 'position: absolute; top: 0; left: 0; width: 10px; height: 2000px';
+      t.notes.content.append(tall);
+    });
+    await swipe(at, 0, -150);
+    assert.ok(await page.evaluate(() => t.notes.content.scrollTop) > 50, 'scrollable content did not pan');
+    await close(page);
+
+    page = await open('desktop', { hasTouch: true });
+    const cdp2 = await page.context().newCDPSession(page);
+    await openIcon(page, 'HD');
+    await page.evaluate(() => {
+      const tall = document.createElement('div');
+      tall.style.cssText = 'position: absolute; top: 0; left: 0; width: 10px; height: 2000px';
+      t.hd.content.append(tall);
+    });
+    const from = await center(icon(page, 'Readme').locator('.img'));
+    const to = { x: 200, y: 700 };
+    await cdp2.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [from] });
+    for (let i = 1; i <= 10; i++) await cdp2.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: from.x + ((to.x - from.x) * i) / 10, y: from.y + ((to.y - from.y) * i) / 10 }] });
+    await cdp2.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await page.waitForTimeout(200);
+    assert.equal(await icon(page, 'Readme').evaluate((e) => e.closest('.win[aria-label]')), null, 'the icon did not drag out to the desktop');
+    await close(page);
+  });
+
   test('close boxes have finger-sized touch targets on touch screens', async () => {
     const page = await open('window', { width: 390, height: 664, isMobile: true, hasTouch: true, deviceScaleFactor: 3 });
     const box = await center(win(page, 'Notes').locator('.close'));
