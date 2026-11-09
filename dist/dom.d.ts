@@ -16,6 +16,8 @@ export declare function place(e: HTMLElement, { x, y, w, h }: {
 }): void;
 /** Bitmap text with a hidden plain-text copy for screen readers. */
 export declare function bitmapText(text: string, font?: FontName, tag?: TextTag): HTMLElement;
+/** True when a modifier key asks the browser for a new tab, window or download. */
+export declare function isModified(e: MouseEvent | KeyboardEvent): boolean;
 export declare function isOver(e: Element, event: PointerEvent): boolean;
 export declare function nearest<T>(e: Element, selector: string, map: WeakMap<Element, T>): T | null;
 export {};

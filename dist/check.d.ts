@@ -7,5 +7,6 @@ export interface Link {
     dangerouslyAllowSchemes?: readonly string[];
 }
 export declare function text(value: string, what: string): string;
+export declare function amount(value: number, what: string): number;
 export declare function pixels(value: number, what: string, min?: number): number;
 export declare function href(link: Link, what: string): string;

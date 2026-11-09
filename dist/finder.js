@@ -3,7 +3,7 @@
 var _a;
 import { icon } from './bitmap.js';
 import * as check from './check.js';
-import { el, place, bitmapText, nearest } from './dom.js';
+import { el, place, bitmapText, nearest, isModified } from './dom.js';
 import { measure } from './font.js';
 import { screen, area, onResize, pointer, rectOf, track, outline, zoomRects } from './screen.js';
 import { DesktopWindow, windowAt } from './windows.js';
@@ -141,19 +141,17 @@ class Icon {
             this.el.setAttribute('role', 'button');
         }
         else {
-            // A plain link underneath: modified and middle clicks open a new tab
-            // as usual, while a plain click only selects.
+            // A plain link underneath: modified clicks and keys and middle clicks
+            // open a new tab as usual, while a plain click only selects.
             const a = el('a', 'icon');
             a.href = href;
             a.draggable = false;
             a.addEventListener('click', (e) => {
-                if (e.detail === 0) {
-                    e.preventDefault();
-                    void this.open();
-                }
-                else if (e.button === 0 && !(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)) {
-                    e.preventDefault();
-                }
+                if (e.button !== 0 || isModified(e))
+                    return;
+                e.preventDefault();
+                if (e.detail === 0)
+                    void this.open(); // keyboard activation
             });
             this.el = a;
         }
@@ -170,6 +168,8 @@ class Icon {
         lbl.style.left = Math.floor((32 - this.#labelW) / 2) + 'px';
         this.el.addEventListener('pointerdown', (e) => this.#down(e));
         this.el.addEventListener('keydown', (e) => {
+            if (href !== undefined && e.key === 'Enter' && isModified(e))
+                return;
             if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
                 this.folder?.desktop.select(this);
@@ -337,18 +337,34 @@ export class FolderWindow extends DesktopWindow {
         this.setInfo([wording.items(this.folder.items.length), wording.used(k(used)), wording.free(k(capacity - used))]);
     }
 }
-function addItem(folder, item) {
-    const { label, kind, kb, art } = item;
-    if (item.kind === 'application') {
-        new Icon(folder, { label, kind, kb, art, href: check.href(item, 'Application href') });
-    }
-    else {
-        new Icon(folder, { label, kind, kb, art, opens: item.opens });
-    }
+// A window belongs to the one icon that opens it.
+function claim(win, claimed) {
+    if (!(win instanceof DesktopWindow))
+        throw new TypeError('An icon must open a DesktopWindow');
+    if (win.opener || claimed.has(win))
+        throw new Error('A window can be opened by only one icon');
+    claimed.add(win);
+    return win;
+}
+// Checks every item before anything is made, so a bad one leaves no trace.
+function iconSpecs(items) {
+    const claimed = new Set();
+    return items.map((item) => {
+        const { label, kind, kb, art } = item;
+        check.text(label, 'Item label');
+        icon(art ?? kind); // throws on an unknown kind or bad art
+        if (kb !== undefined)
+            check.amount(kb, 'Item kb');
+        return item.kind === 'application'
+            ? { label, kind, kb, art, href: check.href(item, 'Application href') }
+            : { label, kind, kb, art, opens: claim(item.opens, claimed) };
+    });
 }
 /** Desktop icons, folders, the disk and the Trash. One per page. */
 export class Desktop {
     #state;
+    #hasDisk = false;
+    #hasTrash = false;
     constructor({ capacity = 20480, text = {}, labels } = {}) {
         if (mounted)
             throw new Error('Only one Desktop can exist per page');
@@ -358,24 +374,33 @@ export class Desktop {
         this.#state = new DesktopState(capacity, { ...ENGLISH, ...text }, labels);
     }
     folderWindow(title, items, size = [320, 160]) {
+        const specs = iconSpecs(items);
         const win = new FolderWindow(this.#state, title, size);
-        for (const item of items)
-            addItem(win.folder, item);
+        for (const spec of specs)
+            new Icon(win.folder, spec);
         return win;
     }
-    /** The disk icon, in the top right corner of the desktop. */
+    /** The disk icon, in the top right corner of the desktop. There is one. */
     disk(label, folder) {
-        new Icon(this.#state.folder, { label, kind: 'hd', opens: folder, corner: 'top' });
+        if (this.#hasDisk)
+            throw new Error('A Desktop has only one disk');
+        check.text(label, 'Disk label');
+        new Icon(this.#state.folder, { label, kind: 'hd', opens: claim(folder, new Set()), corner: 'top' });
+        this.#hasDisk = true;
         this.#state.arrange();
     }
-    /** The Trash, in the bottom right corner; it looks full while it holds something. */
+    /** The Trash, in the bottom right corner; it looks full while it holds something. There is one. */
     trash(items) {
+        if (this.#hasTrash)
+            throw new Error('A Desktop has only one Trash');
+        const specs = iconSpecs(items);
         const { wording } = this.#state;
         let ic = null;
         const win = new FolderWindow(this.#state, wording.trash, [240, 130], () => ic?.setKind(win.folder.items.length ? 'trashFull' : 'trash'));
-        for (const item of items)
-            addItem(win.folder, item);
+        for (const spec of specs)
+            new Icon(win.folder, spec);
         ic = new Icon(this.#state.folder, { label: wording.trash, kind: win.folder.items.length ? 'trashFull' : 'trash', opens: win, corner: 'bottom' });
+        this.#hasTrash = true;
         this.#state.arrange();
     }
 }

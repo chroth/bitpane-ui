@@ -12,6 +12,14 @@ interface FontData {
   top: number;
   space: number;
   glyphs: Record<string, string>;
+  /** Accents, by combining character, drawn onto letters that have none of their own. */
+  marks: Record<string, Mark>;
+}
+
+// Rows centred over (or, if `below`, under) a base letter; a function gets the letter's width.
+interface Mark {
+  rows: readonly string[] | ((width: number) => string[]);
+  below?: boolean;
 }
 
 interface Glyph {
@@ -137,6 +145,59 @@ const SYSTEM: FontData = {
     '`': '## .#',
     '…': '@7 ##.##.##*2',
     '•': '@3 .##. ####*2 .##.',
+    'ı': '@2 ##*7',
+    'ȷ': '@2 ..##*8 ###.',
+    'ß': '.####. ##..##*2 ##.##. ##..##*4 ##.##.',
+    'Æ': '.######## ##..##...*3 ########. ##..##...*3 ##..#####',
+    'æ': '@2 .###.###. ...##..## .######## ##.##.... ##.##.... ##.##..## .###.###.',
+    'Ø': '@-1 .....# .####. ##..##*2 ##.### ##.### ###.## ###.## ##..## .####. #.....',
+    'ø': '@1 .....# .####. ##..## ##.### ###.## ##..##*2 .####. #.....',
+    'Œ': '.######## ##..##...*3 ##..####. ##..##...*3 .########',
+    'œ': '@2 .###.###. ##.##..## ##.##..## ##.###### ##.##.... ##.##..## .###.###.',
+    'Ł': '.##... .##... .##... .##.#. .####. ###... .##... .##... .#####',
+    'ł': '.##. .##. .##. .### .##. ###. .##. .##. .##.',
+    'Ð': '.#####. .##..##*3 ####.## .##..##*3 .#####.',
+    'Đ': '.#####. .##..##*3 ####.## .##..##*3 .#####.',
+    'ð': '..##.# ...##. ..#.## .##### ##..##*4 .####.',
+    'đ': '..#### ....## .##### ##..##*5 .#####',
+    'Þ': '##.... #####. ##..##*3 #####. ##....*3',
+    'þ': '##....*2 #####. ##..##*5 #####. ##....*2',
+    'Ħ': '.##..##. ######## .##..##.*2 .######. .##..##.*4',
+    'ħ': '.##.... ####... .#####. .##..##*6',
+    'Ĳ': '##.....##*7 ##.##..## ##..####.',
+    'ĳ': '##...## ....... ##...##*7 .....## ...###.',
+    'ĸ': '@2 ##..## ##.##. ####.. ###... ####.. ##.##. ##..##',
+    'Ŀ': '##....*3 ##.##. ##....*4 #####.',
+    'ŀ': '##...*4 ##.## ##...*4',
+    'ŉ': '##....... ##....... .#.#####. ...##..##*6',
+    'Ŋ': '##..## ###.## ###### ##.### ##..##*5 ....## ..###.',
+    'ŋ': '@2 #####. ##..##*6 ....## ..###.',
+    'Ŧ': '###### ..##..*3 .####. ..##..*4',
+    'ŧ': '##..*2 #### ##.. #### ##..*3 .###',
+    'ſ': '.### ##..*8',
+    '¡': '@2 ##*2 .. ##*6',
+    '¿': '@2 ..##..*2 ...... ..##..*2 .##... ##.... ##..## .####.',
+    '«': '@3 ..##.## .##.##. ##.##.. .##.##. ..##.##',
+    '»': '@3 ##.##.. .##.##. ..##.## .##.##. ##.##..',
+    '€': '...#### ..##... .##.... ######. .##.... ######. .##.... ..##... ...####',
+    '£': '..###. .##.## .##...*2 #####. .##...*3 ######',
+    '°': '.##. #..#*2 .##.',
+  },
+  marks: {
+    '\u0300': { rows: ['##..', '.##.'] }, // grave
+    '\u0301': { rows: ['..##', '.##.'] }, // acute
+    '\u0302': { rows: ['..##..', '.#..#.'] }, // circumflex
+    '\u0303': { rows: ['.##..#', '#..##.'] }, // tilde
+    '\u0304': { rows: ['####'] }, // macron
+    '\u0306': { rows: ['#....#', '.####.'] }, // breve
+    '\u0307': { rows: ['##'] }, // dot above
+    '\u0308': { rows: (w) => [w >= 5 ? '##' + '.'.repeat(w - 4) + '##' : '##..##'] }, // diaeresis
+    '\u030A': { rows: ['.##.', '#..#', '.##.'] }, // ring
+    '\u030B': { rows: ['.##.##', '##.##.'] }, // double acute
+    '\u030C': { rows: ['.#..#.', '..##..'] }, // caron
+    '\u0326': { rows: ['..##', '.##.'], below: true }, // comma below
+    '\u0327': { rows: ['..##', '.##.'], below: true }, // cedilla
+    '\u0328': { rows: ['.##.', '..##'], below: true }, // ogonek
   },
 };
 
@@ -251,6 +312,59 @@ const SMALL: FontData = {
     '`': '#. .#',
     '…': '@6 #.#.#',
     '•': '@2 .#. ### .#.',
+    'ı': '@2 #*5',
+    'ȷ': '@2 .#*6 #.',
+    'ß': '.##. #..#*2 #.#. #..#*2 #.#.',
+    'Æ': '.#### #.#..*2 ####. #.#..*2 #.###',
+    'æ': '@2 .##.##. ...#..# .###### #..#... .##.###',
+    'Ø': '@-1 ....# .###. #...# #..## #.#.# ##..# #...# .###. #....',
+    'ø': '@1 ...# .##. #.## ##.# #..# .##. #...',
+    'Œ': '.#### #.#..*2 #.##. #.#..*2 .####',
+    'œ': '@2 .#.#. #.#.# #.### #.#.. .#.##',
+    'Ł': '.#.. .#.. .##. ##.. .#.. .#.. .###',
+    'ł': '.#. .#. .## ##. .#. .#. .#.',
+    'Ð': '.###. .#..#*2 ###.# .#..#*2 .###.',
+    'Đ': '.###. .#..#*2 ###.# .#..#*2 .###.',
+    'ð': '.##. ..#. .### #..#*3 .##.',
+    'đ': '.### ...# .### #..#*3 .###',
+    'Þ': '#... ###. #..#*2 ###. #...*2',
+    'þ': '#...*2 ###. #..#*3 ###. #...*2',
+    'Ħ': '.#..#. ###### .#..#. .####. .#..#.*3',
+    'ħ': '.#... ###.. .###. .#..#*4',
+    'Ĳ': '#....#*5 #.#..# #..##.',
+    'ĳ': '#..# .... #..#*5 ...# ..#.',
+    'ĸ': '@2 #..# #.#. ##.. #.#. #..#',
+    'Ŀ': '#...*3 #.#. #...*2 ####',
+    'ŀ': '#.. #.. #.. #.# #.. #.. #..',
+    'ŉ': '#..... #..... ..###. ..#..#*4',
+    'Ŋ': '#...# ##..# #.#.#*3 #..## #...# ....# ..##.',
+    'ŋ': '@2 ###. #..#*4 ...# .##.',
+    'Ŧ': '##### ..#..*2 .###. ..#..*3',
+    'ŧ': '#..*2 ### #.. ### #.. .##',
+    'ſ': '.## #..*6',
+    '¡': '@2 # . #*5',
+    '¿': '@2 ..#. .... ..#. .#.. #... #..# .##.',
+    '«': '@2 ..#.# .#.#. #.#.. .#.#. ..#.#',
+    '»': '@2 #.#.. .#.#. ..#.# .#.#. #.#..',
+    '€': '..### .#... ####. .#... ####. .#... ..###',
+    '£': '.##. #..# #... ###. #...*2 ####',
+    '°': '.#. #.# .#.',
+  },
+  marks: {
+    '\u0300': { rows: ['#.'] }, // grave
+    '\u0301': { rows: ['.#'] }, // acute
+    '\u0302': { rows: ['.#.', '#.#'] }, // circumflex
+    '\u0303': { rows: ['.#.#', '#.#.'] }, // tilde
+    '\u0304': { rows: ['###'] }, // macron
+    '\u0306': { rows: ['#..#', '.##.'] }, // breve
+    '\u0307': { rows: ['#'] }, // dot above
+    '\u0308': { rows: (w) => [w >= 4 ? '#' + '.'.repeat(w - 2) + '#' : '#.#'] }, // diaeresis
+    '\u030A': { rows: ['##', '##'] }, // ring
+    '\u030B': { rows: ['.#.#'] }, // double acute
+    '\u030C': { rows: ['#.#', '.#.'] }, // caron
+    '\u0326': { rows: ['.#', '#.'], below: true }, // comma below
+    '\u0327': { rows: ['.#', '#.'], below: true }, // cedilla
+    '\u0328': { rows: ['.#.', '..#'], below: true }, // ogonek
   },
 };
 
@@ -266,13 +380,50 @@ function parse(def: string): Glyph {
   return { y, w: rows[0]?.length ?? 0, rows };
 }
 
-function compile({ lineHeight, top, space, glyphs }: FontData): Font {
+// Accented letters without a glyph of their own: Latin-1, Latin Extended-A
+// and the Romanian comma letters.
+const COMPOSED = [[0xc0, 0x17f], [0x218, 0x21b]];
+
+function compile({ lineHeight, top, space, glyphs, marks }: FontData): Font {
   const out = new Map<string, Glyph>();
   for (const [ch, def] of Object.entries(glyphs)) out.set(ch, parse(def));
   const blank = { y: 0, w: space, rows: [] };
   out.set(' ', blank);
   out.set('\u00a0', blank);
+  for (const [from, to] of COMPOSED) {
+    for (let cp = from!; cp <= to!; cp++) {
+      const ch = String.fromCodePoint(cp);
+      const g = out.has(ch) ? null : compose(ch);
+      if (g) out.set(ch, g);
+    }
+  }
   return { lineHeight, top, glyphs: out };
+
+  // A letter and one accent, as Unicode decomposes it. The accent sits one
+  // blank row above the letter, or touching it where the line has no room;
+  // an accent below goes above instead if the letter has a descender.
+  function compose(ch: string): Glyph | null {
+    const [letter = '', accent = '', ...more] = ch.normalize('NFD');
+    const mark = marks[accent];
+    if (!mark || more.length) return null;
+    const dotless = !mark.below && (letter === 'i' || letter === 'j');
+    const base = out.get(dotless ? (letter === 'i' ? 'ı' : 'ȷ') : letter);
+    if (!base) return null;
+    const rows = typeof mark.rows === 'function' ? mark.rows(base.w) : [...mark.rows];
+    const w = Math.max(base.w, ...rows.map((r) => r.length));
+    const centre = (r: string): string => {
+      const left = Math.floor((w - r.length) / 2);
+      return '.'.repeat(left) + r + '.'.repeat(w - r.length - left);
+    };
+    const letterRows = base.rows.map(centre), markRows = rows.map(centre);
+    if (mark.below && top + base.y + base.rows.length + rows.length <= lineHeight) {
+      return { y: base.y, w, rows: [...letterRows, ...markRows] };
+    }
+    const gap = top + base.y - rows.length - 1 >= 0 ? 1 : 0;
+    const y = base.y - rows.length - gap;
+    if (top + y < 0) return null;
+    return { y, w, rows: [...markRows, ...Array<string>(gap).fill('.'.repeat(w)), ...letterRows] };
+  }
 }
 
 export const FONTS: Record<FontName, Font> = { system: compile(SYSTEM), small: compile(SMALL) };

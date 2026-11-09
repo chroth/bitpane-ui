@@ -8,11 +8,12 @@ let mounted = false;
 export function menuBar(menus, { label = 'Application menu' } = {}) {
     if (mounted)
         throw new Error('There is only one menu bar');
-    mounted = true;
-    const bar = el('nav', 'menu-bar', screen());
+    // Built off the page, so a bad label leaves no trace.
+    const bar = el('nav', 'menu-bar');
     bar.setAttribute('aria-label', label);
     let active = null;
     const triggers = [];
+    const openers = new Map();
     const close = (restoreFocus = false) => {
         if (!active)
             return;
@@ -66,6 +67,7 @@ export function menuBar(menus, { label = 'Application menu' } = {}) {
                 popup.style.left = -Math.ceil(overflow / (bar.getBoundingClientRect().width / bar.offsetWidth)) + 'px';
             (last ? items.at(-1) : items[0])?.focus();
         };
+        openers.set(trigger, () => open());
         trigger.addEventListener('click', () => (active?.trigger === trigger ? close(true) : open()));
         trigger.addEventListener('keydown', (e) => {
             if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
@@ -84,6 +86,7 @@ export function menuBar(menus, { label = 'Application menu' } = {}) {
             }
         });
     }
+    // Left and Right move between menus, opening the next one if one was open.
     const onKey = (e) => {
         if (e.key === 'Escape') {
             e.preventDefault();
@@ -96,8 +99,12 @@ export function menuBar(menus, { label = 'Application menu' } = {}) {
             const current = active?.trigger ?? document.activeElement;
             const index = triggers.indexOf(current);
             const next = triggers[(index + (e.key === 'ArrowRight' ? 1 : -1) + triggers.length) % triggers.length];
+            const wasOpen = active !== null;
             close();
-            next?.focus();
+            if (wasOpen)
+                openers.get(next)();
+            else
+                next.focus();
         }
     };
     const outside = (e) => { if (!bar.contains(e.target))
@@ -109,6 +116,8 @@ export function menuBar(menus, { label = 'Application menu' } = {}) {
         const a = area();
         Object.assign(bar.style, { left: a.x + 'px', top: a.y - HEIGHT + 'px', width: a.w + 'px' });
     };
+    screen().appendChild(bar);
+    mounted = true;
     reserveMenu(HEIGHT);
     layout();
     const stop = onResize(layout);

@@ -18,7 +18,9 @@ export type PushButton = (HTMLButtonElement | HTMLAnchorElement) & {
 // over the button; a link is followed by the browser on its usual click.
 export function pushButton(parent: HTMLElement, options: ButtonOptions): PushButton {
   const { label, rect, isDefault = false } = options;
-  const { w, h } = rect;
+  const { x, y, w, h } = rect;
+  check.pixels(x, 'Button x');
+  check.pixels(y, 'Button y');
   check.pixels(w, 'Button width', 1);
   check.pixels(h, 'Button height', 1);
   let b: HTMLElement;
@@ -43,7 +45,7 @@ export function pushButton(parent: HTMLElement, options: ButtonOptions): PushBut
   b.append(off, on);
   el('span', 'sr-only', b).textContent = label;
   const pad = isDefault ? 4 : 0;
-  place(b, { x: rect.x - pad, y: rect.y - pad, w: off.width, h: off.height });
+  place(b, { x: x - pad, y: y - pad, w: off.width, h: off.height });
   parent.appendChild(b);
 
   b.addEventListener('pointerdown', (e) => {

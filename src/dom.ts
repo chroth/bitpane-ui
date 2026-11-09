@@ -36,6 +36,11 @@ export function bitmapText(text: string, font: FontName = 'system', tag: TextTag
   return e;
 }
 
+/** True when a modifier key asks the browser for a new tab, window or download. */
+export function isModified(e: MouseEvent | KeyboardEvent): boolean {
+  return e.metaKey || e.ctrlKey || e.shiftKey || e.altKey;
+}
+
 // Hit-tests instead of comparing rectangles, so an element's enlarged touch
 // area (a CSS pseudo-element) counts as over it.
 export function isOver(e: Element, event: PointerEvent): boolean {

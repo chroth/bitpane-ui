@@ -31,7 +31,7 @@ for (const [risk, pattern] of Object.entries(FORBIDDEN)) {
 test('every link a library function creates goes through check.href', () => {
   for (const file of files) {
     const src = readFileSync(`src/${file}`, 'utf8');
-    const sets = (src.match(/\.href\s*=/g) || []).length;
+    const sets = (src.match(/\.href\s*=(?!=)/g) || []).length;
     if (sets) assert.ok((src.match(/check\.href\(/g) || []).length >= 1, `${file} sets href without check.href`);
   }
 });

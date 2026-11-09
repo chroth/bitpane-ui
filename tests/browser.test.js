@@ -251,6 +251,21 @@ describe('windows', () => {
     await close(page);
   });
 
+  test('hide() stops a window that is still opening; show() again reopens it', async () => {
+    const page = await open('desktop');
+    const r = await page.evaluate(async () => {
+      const w = new t.api.DesktopWindow('Second', [200, 100]);
+      w.show(); w.hide();
+      t.hd.show(); setTimeout(() => t.hd.hide(), 50);
+      await new Promise((done) => setTimeout(done, 600));
+      const stopped = [w.el.isConnected, t.hd.el.isConnected];
+      w.show(); w.hide(); await w.show();
+      return { stopped, reopened: w.el.isConnected };
+    });
+    assert.deepEqual(r, { stopped: [false, false], reopened: true });
+    await close(page);
+  });
+
   test('setRect() moves and resizes at once; rect is a copy', async () => {
     const page = await open('window');
     const box = await page.evaluate(() => {
@@ -276,6 +291,109 @@ describe('windows', () => {
     await page.waitForFunction(() => document.querySelector('.win[aria-label="Notes"]').classList.contains('sv'));
     await page.evaluate(() => t.notes.content.lastChild.remove());
     await page.waitForFunction(() => !document.querySelector('.win[aria-label="Notes"]').classList.contains('sv'));
+    await close(page);
+  });
+
+  test('a second finger does not move or end a drag', async () => {
+    const page = await open('window', { hasTouch: true });
+    const box = await win(page, 'Notes').locator('.ttl').boundingBox();
+    const x = box.x + box.width / 2, y = box.y + box.height / 2;
+    const cdp = await page.context().newCDPSession(page);
+    const touch = (type, touchPoints) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints });
+    const first = (d) => ({ x: x + d, y: y + d, id: 1 });
+    await touch('touchStart', [first(0)]);
+    await touch('touchMove', [first(10)]);
+    await touch('touchStart', [first(10), { x: 1200, y: 800, id: 2 }]);
+    await touch('touchMove', [first(20), { x: 1300, y: 850, id: 2 }]);
+    await touch('touchEnd', [{ x: 1300, y: 850, id: 2 }]); // lists the finger lifted
+    await touch('touchMove', [first(40)]);
+    await touch('touchEnd', [first(40)]);
+    await page.waitForTimeout(200);
+    const scale = await page.evaluate(() => document.querySelector('.win').getBoundingClientRect().width / t.notes.rect.w);
+    assert.deepEqual(await page.evaluate(() => t.notes.rect), { x: 24 + 40 / scale, y: 30 + 40 / scale, w: 240, h: 160 });
+    await close(page);
+  });
+
+  test('a zoomed window keeps filling the screen as it grows', async () => {
+    const page = await open('window', { width: 700, height: 450 });
+    await win(page, 'Notes').locator('.zoom').click();
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.waitForTimeout(500);
+    const [r, a] = await page.evaluate(() => [t.notes.rect, t.area()]);
+    assert.deepEqual(r, { x: a.x + 4, y: a.y + 4, w: a.w - 10, h: a.h - 10 });
+    await close(page);
+  });
+
+  test('content scrolls by wheel, keys, thumb and track, without native scroll bars', async () => {
+    const page = await open('window');
+    await page.evaluate(() => {
+      const tall = document.createElement('div');
+      tall.style.cssText = 'position: absolute; top: 0; left: 0; width: 10px; height: 2000px';
+      t.notes.content.append(tall);
+    });
+    const top = () => page.evaluate(() => t.notes.content.scrollTop);
+    const content = await center(win(page, 'Notes').locator('.content'));
+    await page.mouse.move(content.x, content.y);
+    await page.mouse.wheel(0, 300);
+    await page.waitForFunction(() => t.notes.content.scrollTop === 300);
+    assert.equal(await page.evaluate(() => t.notes.content.offsetWidth - t.notes.content.clientWidth), 0, 'a native scroll bar shows');
+    await win(page, 'Notes').focus();
+    await page.keyboard.press('Home');
+    await page.keyboard.press('ArrowDown');
+    assert.equal(await top(), 16);
+    await page.keyboard.press('End');
+    assert.equal(await top(), await page.evaluate(() => t.notes.content.scrollHeight - t.notes.content.clientHeight));
+    await page.keyboard.press('Home');
+    const atTop = () => page.waitForFunction(() => t.notes.el.querySelector('.vs .thumb').style.top === '15px');
+    await atTop();
+    const thumb = await center(win(page, 'Notes').locator('.vs .thumb'));
+    await drag(page, thumb, { x: thumb.x, y: thumb.y + 60 });
+    assert.ok(await top() > 500, 'dragging the thumb did not scroll');
+    await page.keyboard.press('Home');
+    await atTop();
+    const bar = await win(page, 'Notes').locator('.vs').boundingBox();
+    await page.mouse.click(bar.x + bar.width / 2, bar.y + bar.height - 40);
+    assert.equal(await top(), await page.evaluate(() => t.notes.content.clientHeight - 16), 'clicking the track did not page down');
+    await close(page);
+  });
+
+  test('touch pans content only when it can scroll, and icons still drag', async () => {
+    let page = await open('window', { hasTouch: true });
+    const cdp = await page.context().newCDPSession(page);
+    const swipe = async ({ x, y }, dx, dy) => {
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+      for (let i = 1; i <= 10; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x + (dx * i) / 10, y: y + (dy * i) / 10 }] });
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      await page.waitForTimeout(200);
+    };
+    await page.evaluate(() => { t.cancels = 0; t.notes.content.addEventListener('pointercancel', () => t.cancels++); });
+    const at = await center(win(page, 'Notes').locator('.content'));
+    await swipe(at, 0, -150);
+    assert.equal(await page.evaluate(() => t.cancels), 0, 'content that cannot scroll lost its touch');
+    await page.evaluate(() => {
+      const tall = document.createElement('div');
+      tall.style.cssText = 'position: absolute; top: 0; left: 0; width: 10px; height: 2000px';
+      t.notes.content.append(tall);
+    });
+    await swipe(at, 0, -150);
+    assert.ok(await page.evaluate(() => t.notes.content.scrollTop) > 50, 'scrollable content did not pan');
+    await close(page);
+
+    page = await open('desktop', { hasTouch: true });
+    const cdp2 = await page.context().newCDPSession(page);
+    await openIcon(page, 'HD');
+    await page.evaluate(() => {
+      const tall = document.createElement('div');
+      tall.style.cssText = 'position: absolute; top: 0; left: 0; width: 10px; height: 2000px';
+      t.hd.content.append(tall);
+    });
+    const from = await center(icon(page, 'Readme').locator('.img'));
+    const to = { x: 200, y: 700 };
+    await cdp2.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [from] });
+    for (let i = 1; i <= 10; i++) await cdp2.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: from.x + ((to.x - from.x) * i) / 10, y: from.y + ((to.y - from.y) * i) / 10 }] });
+    await cdp2.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await page.waitForTimeout(200);
+    assert.equal(await icon(page, 'Readme').evaluate((e) => e.closest('.win[aria-label]')), null, 'the icon did not drag out to the desktop');
     await close(page);
   });
 
@@ -420,6 +538,34 @@ describe('desktop', () => {
     await close(page);
   });
 
+  test('modified Enter on applications is left to the browser', async () => {
+    const page = await open('apps');
+    await openIcon(page, 'HD');
+    await icon(page, 'Game').focus();
+    const [tab] = await Promise.all([page.context().waitForEvent('page'), page.keyboard.press('Control+Enter')]);
+    await tab.waitForLoadState();
+    assert.match(tab.url(), /#launched$/);
+    await page.waitForTimeout(600);
+    assert.equal(await page.evaluate(() => location.hash), '#apps');
+    await tab.close();
+    await close(page);
+  });
+
+  test('focus moves into a window that opens and back to its icon when it closes', async () => {
+    const page = await open('desktop');
+    await icon(page, 'HD').focus();
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(500);
+    assert.equal(await page.evaluate(() => document.activeElement.getAttribute('aria-label')), 'HD');
+    assert.equal(await page.evaluate(() => document.activeElement.classList.contains('win')), true, 'focus is not on the window');
+    await page.keyboard.press('Tab');
+    assert.equal(await page.evaluate(() => !!document.activeElement.closest('.win[aria-label=HD]')), true, 'Tab left the window');
+    await win(page, 'HD').locator('.close').focus();
+    await page.keyboard.press('Enter');
+    assert.equal(await page.evaluate(() => document.activeElement === document.querySelector('.icon[aria-label=HD]')), true);
+    await close(page);
+  });
+
   test('custom icon art is drawn, and bad art is rejected', async () => {
     const page = await open('apps');
     await openIcon(page, 'HD');
@@ -514,6 +660,12 @@ describe('controls', () => {
     assert.equal(await file.getAttribute('aria-expanded'), 'false');
     await page.keyboard.press('ArrowRight');
     assert.equal(await page.evaluate(() => document.activeElement.textContent), 'Edit');
+    await file.click();
+    await page.keyboard.press('ArrowRight');
+    assert.equal(await page.evaluate(() => document.activeElement.textContent), 'Undo', 'the next menu did not open');
+    await page.keyboard.press('ArrowLeft');
+    assert.equal(await page.evaluate(() => document.activeElement.textContent), 'New');
+    await page.keyboard.press('Escape');
     await page.evaluate(() => t.removeMenu());
     assert.equal(await page.locator('.menu-bar').count(), 0);
     assert.deepEqual(await page.evaluate(() => t.area()), before);
@@ -554,6 +706,49 @@ describe('controls', () => {
     await close(page);
   });
 
+
+  test('alert keys go to the focused button; Escape presses nothing; actions run once', async () => {
+    let page = await open('actionAlert');
+    await page.keyboard.press('Escape');
+    assert.equal(await page.locator('.modal').count(), 1, 'Escape pressed a button');
+    for (const key of ['Enter', ' ']) {
+      await close(page);
+      page = await open('actionAlert');
+      await page.keyboard.press('Shift+Tab');
+      await page.keyboard.press(key);
+      await page.waitForTimeout(200);
+      assert.equal(await page.evaluate(() => t.choice), 'discard', `${key} on Discard`);
+    }
+    await close(page);
+    page = await open('window');
+    await page.evaluate(() => { t.n = 0; t.a = t.api.alert({ message: 'x', buttons: [{ label: 'OK', action: () => t.n++ }] }); });
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Enter');
+    await page.evaluate(() => { t.a.buttons[0].press(); t.a.buttons[0].press(); });
+    await page.waitForTimeout(400);
+    assert.equal(await page.evaluate(() => t.n), 1);
+    await close(page);
+  });
+
+  test('modified Enter on an alert link button is left to the browser', async () => {
+    const page = await open('linkAlert');
+    const [tab] = await Promise.all([page.context().waitForEvent('page'), page.keyboard.press('Control+Enter')]);
+    await tab.waitForLoadState();
+    assert.match(tab.url(), /#restarted$/);
+    assert.equal(await page.evaluate(() => location.hash), '#linkAlert');
+    await tab.close();
+    await close(page);
+  });
+
+  test('closing an alert returns focus to where it was', async () => {
+    const page = await open('window');
+    await win(page, 'Notes').locator('.btn').focus();
+    await page.evaluate(() => t.api.alert({ message: 'x', buttons: [{ label: 'OK' }] }));
+    await page.keyboard.press('Enter');
+    assert.equal(await page.evaluate(() => document.activeElement.textContent), 'OK');
+    assert.equal(await page.evaluate(() => !!document.activeElement.closest('.win[aria-label=Notes]')), true);
+    await close(page);
+  });
 });
 
 describe('secure by design', () => {
@@ -598,6 +793,25 @@ describe('secure by design', () => {
     await close(page);
   });
 
+  test('windows opened during an alert are inert too, and nested alerts close in any order', async () => {
+    const page = await open('window');
+    const r = await page.evaluate(async () => {
+      const notes = document.querySelector('.win[aria-label=Notes]');
+      const a = t.api.alert({ message: 'one', buttons: [{ label: 'A' }] });
+      const late = new t.api.DesktopWindow('Late', [200, 100]);
+      await late.show();
+      await new Promise((done) => setTimeout(done));
+      const lateInert = late.el.inert;
+      const b = t.api.alert({ message: 'two', buttons: [{ label: 'B' }] });
+      a.close();
+      const underB = [notes.inert, late.el.inert, document.querySelector('.modal').inert];
+      b.close();
+      return { lateInert, underB, after: document.querySelectorAll('[inert]').length };
+    });
+    assert.deepEqual(r, { lateInert: true, underB: [true, true, false], after: 0 });
+    await close(page);
+  });
+
   test('pictures load without sending a referrer', async () => {
     const page = await open('desktop');
     assert.equal(await page.evaluate(() => t.photo.content.querySelector('img').referrerPolicy), 'no-referrer');
@@ -629,6 +843,79 @@ describe('secure by design', () => {
         'An alert needs at least one button',
         'setInfo needs a window created with info: true',
       ],
+      changed: 0,
+    });
+    await close(page);
+  });
+
+  test('bad window, button, text and menu input fails before anything changes', async () => {
+    const page = await open('window');
+    const results = await page.evaluate(() => {
+      const count = () => document.querySelectorAll('.win, .btn, .menu-bar').length;
+      const before = { count: count(), rect: t.notes.rect };
+      const attempt = (f) => { try { f(); return 'no error'; } catch (e) { return e.message; } };
+      const rect = { x: 0, y: 0, w: 60, h: 20 };
+      const r = [
+        attempt(() => t.notes.setRect({ x: NaN })),
+        attempt(() => t.notes.setRect({ w: 0 })),
+        attempt(() => t.notes.setRect({ x: 50, foo: 1 })),
+        attempt(() => t.api.pushButton(document.body, { label: 'OK', rect: { ...rect, x: NaN }, action() {} })),
+        attempt(() => t.api.textWindow('X', ['fine', 'x'.repeat(501)]).show()),
+        attempt(() => t.api.menuBar([{ label: 'x'.repeat(501), items: [] }])),
+      ];
+      const a = t.area();
+      a.w = 1;
+      return { r, changed: count() - before.count, rectKept: JSON.stringify(t.notes.rect) === JSON.stringify(before.rect), areaKept: t.area().w > 1, menuStillMounts: typeof t.api.menuBar([]) };
+    });
+    assert.deepEqual(results, {
+      r: [
+        'Window x must be a number from -10000 to 10000',
+        'Window w must be a number from 1 to 10000',
+        'setRect takes x, y, w and h, not "foo"',
+        'Button x must be a number from -10000 to 10000',
+        'Text is longer than 500 characters',
+        'Text is longer than 500 characters',
+      ],
+      changed: 0,
+      rectKept: true,
+      areaKept: true,
+      menuStillMounts: 'function',
+    });
+    await close(page);
+  });
+
+  test('bad desktop items fail before anything changes; a window has one icon, a desktop one disk and Trash', async () => {
+    const page = await open('desktop');
+    const results = await page.evaluate(() => {
+      const icons = () => document.querySelectorAll('.icon').length;
+      const before = icons();
+      const attempt = (f) => { try { f(); return 'no error'; } catch (e) { return e.message; } };
+      const fresh = new t.api.DesktopWindow('Fresh', [100, 100]);
+      const doc = (extra) => ({ label: 'Doc', kind: 'document', opens: fresh, ...extra });
+      const r = [
+        attempt(() => t.desktop.folderWindow('X', [doc(), { label: 'App', kind: 'application' }])),
+        attempt(() => t.desktop.folderWindow('X', [doc({ kb: NaN })])),
+        attempt(() => t.desktop.folderWindow('X', [doc({ kb: -1 })])),
+        attempt(() => t.desktop.folderWindow('X', [doc(), doc()])),
+        attempt(() => t.desktop.folderWindow('X', [doc({ opens: t.readme })])),
+        attempt(() => t.desktop.folderWindow('X', [doc({ opens: {} })])),
+        attempt(() => t.desktop.disk('HD2', t.desktop.folderWindow('Y', []))),
+        attempt(() => t.desktop.trash([])),
+      ];
+      return { r, freshUnclaimed: fresh.opener === null, changed: icons() - before };
+    });
+    assert.deepEqual(results, {
+      r: [
+        'Application href is missing',
+        'Item kb must be a number of 0 or more',
+        'Item kb must be a number of 0 or more',
+        'A window can be opened by only one icon',
+        'A window can be opened by only one icon',
+        'An icon must open a DesktopWindow',
+        'A Desktop has only one disk',
+        'A Desktop has only one Trash',
+      ],
+      freshUnclaimed: true,
       changed: 0,
     });
     await close(page);

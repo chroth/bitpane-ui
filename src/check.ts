@@ -20,6 +20,11 @@ export function text(value: string, what: string): string {
   return value;
 }
 
+export function amount(value: number, what: string): number {
+  if (!Number.isFinite(value) || value < 0) throw new RangeError(`${what} must be a number of 0 or more`);
+  return value;
+}
+
 export function pixels(value: number, what: string, min = -MAX_PIXELS): number {
   if (!Number.isFinite(value) || value < min || value > MAX_PIXELS) {
     throw new RangeError(`${what} must be a number from ${min} to ${MAX_PIXELS}`);
@@ -34,6 +39,7 @@ export function pixels(value: number, what: string, min = -MAX_PIXELS): number {
 // cannot disguise a scheme; anything without a scheme is relative and takes
 // the page's own.
 export function href(link: Link, what: string): string {
+  if (link.href == null) throw new TypeError(`${what} is missing`);
   const value = String(link.href);
   const allowed = Array.from(link.dangerouslyAllowSchemes ?? [], String);
   for (const s of allowed) {

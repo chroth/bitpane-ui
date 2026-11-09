@@ -26,6 +26,10 @@ export function bitmapText(text, font = 'system', tag = 'span') {
     e.appendChild(render(text, font));
     return e;
 }
+/** True when a modifier key asks the browser for a new tab, window or download. */
+export function isModified(e) {
+    return e.metaKey || e.ctrlKey || e.shiftKey || e.altKey;
+}
 // Hit-tests instead of comparing rectangles, so an element's enlarged touch
 // area (a CSS pseudo-element) counts as over it.
 export function isOver(e, event) {

@@ -71,6 +71,8 @@ export class DesktopWindow {
   #placed = false;
   #zoomed: Rect | null = null;
   #opening: Promise<void> | null = null;
+  #wanted = false; // whether the last call was show() rather than hide()
+  #returnFocus: Element | null = null;
 
   // The title may be empty, for a window without one.
   constructor(title: string, size: Size, { info = false, labels = {} }: WindowOptions = {}) {
@@ -82,6 +84,7 @@ export class DesktopWindow {
     this.el = el('div', 'win');
     windowOf.set(this.el, this);
     this.el.setAttribute('role', 'dialog');
+    this.el.tabIndex = -1;
     if (title) this.el.setAttribute('aria-label', title);
 
     const tb = el('div', 'tb', this.el);
@@ -110,12 +113,14 @@ export class DesktopWindow {
       if (e.button === 0 && !(e.target as Element).closest('button')) this.#drag(e);
     });
     grow.addEventListener('pointerdown', (e) => this.#resize(e));
+    this.el.addEventListener('keydown', (e) => this.#scrollKey(e));
     // Scroll bars follow the content without the page having to ask.
     const update = (): void => this.#updateScroll();
     this.content.addEventListener('scroll', update);
     new ResizeObserver(update).observe(this.content);
     new MutationObserver(update).observe(this.content, { childList: true, subtree: true, attributes: true, characterData: true });
     onResize(() => {
+      if (this.#zoomed) this.#rect = this.#zoomRect();
       if (this.el.isConnected) this.#layout();
     });
   }
@@ -127,8 +132,13 @@ export class DesktopWindow {
 
   /** Moves or resizes the window, keeping it inside the visible area. */
   setRect(changes: Partial<Rect>): void {
-    Object.assign(this.#rect, changes);
-    if (changes.x !== undefined || changes.y !== undefined) this.#placed = true;
+    const next = { ...this.#rect };
+    for (const key of Object.keys(changes)) {
+      if (key !== 'x' && key !== 'y' && key !== 'w' && key !== 'h') throw new TypeError(`setRect takes x, y, w and h, not "${key}"`);
+      next[key] = check.pixels(changes[key]!, `Window ${key}`, key === 'w' || key === 'h' ? 1 : undefined);
+    }
+    this.#rect = next;
+    if ('x' in changes || 'y' in changes) this.#placed = true;
     this.#zoomed = null;
     this.#layout();
   }
@@ -161,18 +171,28 @@ export class DesktopWindow {
 
   /** Zooms open from the opener, or comes to the front if already open. */
   async show(): Promise<void> {
+    this.#wanted = true;
     if (this.el.isConnected) return this.activate();
     this.#opening ??= this.#open().finally(() => { this.#opening = null; });
     return this.#opening;
   }
 
+  /** Closes the window, or stops it opening if it is still zooming open. */
   hide(): void {
+    this.#wanted = false;
     const index = openWindows.indexOf(this);
     if (index < 0) return;
+    const hadFocus = this.el.contains(document.activeElement);
     openWindows.splice(index, 1);
     this.el.remove();
     this.opener?.setOpen(false);
-    openWindows.at(-1)?.activate();
+    const next = openWindows.at(-1);
+    next?.activate();
+    if (hadFocus) {
+      const back = this.#returnFocus;
+      if (back instanceof HTMLElement && back.isConnected && !back.closest('[inert]')) back.focus();
+      else next?.el.focus();
+    }
     void zoomRects(this.#rect, this.opener?.rect());
     this.onHide?.();
   }
@@ -190,25 +210,34 @@ export class DesktopWindow {
       this.#rect = this.#zoomed;
       this.#zoomed = null;
     } else {
-      const a = area();
       this.#zoomed = { ...this.#rect };
-      this.#rect = { x: a.x + 4, y: a.y + 4, w: a.w - 10, h: a.h - 10 };
+      this.#rect = this.#zoomRect();
     }
     this.#layout();
+  }
+
+  // A zoomed window fills the visible area, and keeps filling it as it changes.
+  #zoomRect(): Rect {
+    const a = area();
+    return { x: a.x + 4, y: a.y + 4, w: a.w - 10, h: a.h - 10 };
   }
 
   /** Runs each time the window is about to open. */
   protected beforeOpen(): void {}
 
+  // Focus moves into the window, and goes back where it came from on hide.
   async #open(): Promise<void> {
+    this.#returnFocus = document.activeElement;
     this.beforeOpen();
     if (!this.#placed) this.#placeFirst();
     this.#clamp();
     await zoomRects(this.opener?.rect(), this.#rect);
+    if (!this.#wanted) return;
     screen().appendChild(this.el);
     openWindows.push(this);
     this.#layout();
     this.activate();
+    this.el.focus();
     this.opener?.setOpen(true);
     this.onShow?.();
   }
@@ -256,29 +285,74 @@ export class DesktopWindow {
     return btn;
   }
 
+  // Arrows scroll a line and the gray track a page, repeating while held;
+  // the thumb drags. The content also scrolls natively by wheel, touch and keys.
   #scrollBar(cls: 'vs' | 'hs', back: Direction, forward: Direction): ScrollBar {
     const bar = el('div', cls, this.el);
-    el('div', 'track', bar);
+    const trackEl = el('div', 'track', bar);
     const thumb = el('div', 'thumb', bar);
+    const vertical = cls === 'vs';
+    const c = this.content;
+    const scrollBy = (d: number): void => {
+      if (vertical) c.scrollTop += d;
+      else c.scrollLeft += d;
+    };
+    const hold = (e: PointerEvent, step: () => void, box?: HTMLElement): void => {
+      e.stopPropagation();
+      this.activate();
+      box?.classList.add('down');
+      step();
+      const timer = setInterval(step, 80);
+      track(e, { end: () => { clearInterval(timer); box?.classList.remove('down'); } });
+    };
     for (const [dir, pos, sign] of [[back, 'a1', -1], [forward, 'a2', 1]] as const) {
       const box = el('div', 'arrow ' + pos, bar);
       const dark = arrow(dir, true);
       dark.classList.add('pressed');
       box.append(arrow(dir, false), dark);
-      box.addEventListener('pointerdown', (e) => {
-        e.stopPropagation();
-        this.activate();
-        box.classList.add('down');
-        const step = (): void => {
-          if (cls === 'vs') this.content.scrollTop += sign * 16;
-          else this.content.scrollLeft += sign * 16;
-        };
-        step();
-        const timer = setInterval(step, 80);
-        track(e, { end: () => { clearInterval(timer); box.classList.remove('down'); } });
-      });
+      box.addEventListener('pointerdown', (e) => hold(e, () => scrollBy(sign * 16), box));
     }
+    // Pages toward the pointer until the thumb reaches it.
+    trackEl.addEventListener('pointerdown', (e) => {
+      const at = vertical ? e.clientY : e.clientX;
+      const r = thumb.getBoundingClientRect();
+      const sign = at < (vertical ? r.top : r.left) ? -1 : 1;
+      hold(e, () => {
+        const t = thumb.getBoundingClientRect();
+        const past = sign < 0 ? at >= (vertical ? t.top : t.left) : at <= (vertical ? t.bottom : t.right);
+        if (!past) scrollBy(sign * ((vertical ? c.clientHeight : c.clientWidth) - 16));
+      });
+    });
+    thumb.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      this.activate();
+      const start = vertical ? c.scrollTop : c.scrollLeft;
+      const range = vertical ? c.scrollHeight - c.clientHeight : c.scrollWidth - c.clientWidth;
+      const travel = Math.max(1, (vertical ? bar.clientHeight : bar.clientWidth) - 46);
+      track(e, {
+        move: (dx, dy) => {
+          const v = start + ((vertical ? dy : dx) * range) / travel;
+          if (vertical) c.scrollTop = v;
+          else c.scrollLeft = v;
+        },
+      });
+    });
     return { el: bar, thumb };
+  }
+
+  // Scroll keys on the window itself; inside the content the browser handles them.
+  #scrollKey(e: KeyboardEvent): void {
+    if (e.target !== this.el) return;
+    const c = this.content, line = 16, page = c.clientHeight - 16;
+    const moves: Record<string, [number, number]> = {
+      ArrowUp: [0, -line], ArrowDown: [0, line], ArrowLeft: [-line, 0], ArrowRight: [line, 0],
+      PageUp: [0, -page], PageDown: [0, page], ' ': [0, e.shiftKey ? -page : page],
+      Home: [0, -c.scrollHeight], End: [0, c.scrollHeight],
+    };
+    const move = moves[e.key];
+    if (!move) return;
+    e.preventDefault();
+    c.scrollBy(...move);
   }
 
   #updateScroll(): void {

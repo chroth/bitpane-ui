@@ -5,8 +5,11 @@ import { el, bitmapText } from './dom.js';
 import { measure } from './font.js';
 import { DesktopWindow, windowSize } from './windows.js';
 export function textWindow(title, lines, options) {
-    // Links are checked before the window exists, so a bad one leaves no trace.
-    const hrefs = lines.map((l) => (typeof l === 'string' ? null : check.href(l, 'Link href')));
+    // Lines are checked before the window exists, so a bad one leaves no trace.
+    const hrefs = lines.map((l) => {
+        check.text(typeof l === 'string' ? l : l.text, 'Text');
+        return typeof l === 'string' ? null : check.href(l, 'Link href');
+    });
     const widest = Math.max(...lines.map((l) => measure(typeof l === 'string' ? l : l.text, 'system')));
     const win = new DesktopWindow(title, windowSize([Math.max(242, widest + 52), lines.length * 16 + 48], options), options);
     const doc = el('div', 'doc', win.content);

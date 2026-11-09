@@ -42,6 +42,7 @@ export declare class DesktopWindow {
     setInfo(parts: readonly string[]): void;
     /** Zooms open from the opener, or comes to the front if already open. */
     show(): Promise<void>;
+    /** Closes the window, or stops it opening if it is still zooming open. */
     hide(): void;
     activate(): void;
     toggleZoom(): void;
