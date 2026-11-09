@@ -8,4 +8,4 @@ export interface Link {
 }
 export declare function text(value: string, what: string): string;
 export declare function pixels(value: number, what: string, min?: number): number;
-export declare function href({ href, dangerouslyAllowSchemes }: Link, what: string): string;
+export declare function href(link: Link, what: string): string;

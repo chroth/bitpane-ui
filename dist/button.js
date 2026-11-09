@@ -1,4 +1,4 @@
-import { button } from './bitmap.js';
+import { buttonArt } from './bitmap.js';
 import * as check from './check.js';
 import { el, place, isOver } from './dom.js';
 import { track } from './screen.js';
@@ -27,8 +27,8 @@ export function pushButton(parent, options) {
         });
         b = btn;
     }
-    const off = button(label, w, h, { isDefault });
-    const on = button(label, w, h, { isDefault, pressed: true });
+    const off = buttonArt(label, w, h, { isDefault });
+    const on = buttonArt(label, w, h, { isDefault, pressed: true });
     on.classList.add('on');
     b.append(off, on);
     el('span', 'sr-only', b).textContent = label;
