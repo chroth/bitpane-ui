@@ -1,6 +1,7 @@
 # Changelog
 
 ## 0.11.0
+- **Breaking:** `DesktopWindow` `rect` is read-only; move and resize with `setRect({ x, y, w, h })`. `layout()` is removed: scroll bars follow the content by themselves.
 - A link `href` that is not a string is converted once, so the checked URL is the one used.
 
 ## 0.10.0

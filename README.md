@@ -44,7 +44,7 @@ Sizes and positions are in screen pixels; the screen is scaled up by a whole num
 - `new DesktopWindow(title, [w, h], { info, labels })`: draggable, resizable, zoomable window with scroll bars. Put your own DOM or canvas in `.content`.
   - `show()`, `hide()`, `activate()`, `toggleZoom()`
   - `onShow`, `onHide`: called after the window opens and closes.
-  - `layout()`: update the scroll bars after changing the content.
+  - `rect`, `setRect({ x, y, w, h })`: the window's position and size; pass only what changes.
   - `setInfo([left, centre, right])`: the info line under the title bar, with `info: true`.
   - `labels`: screen-reader names for the close and zoom boxes.
 - `textWindow(title, lines)`: text document; a line is a string or `{ text, href }`.

@@ -251,6 +251,34 @@ describe('windows', () => {
     await close(page);
   });
 
+  test('setRect() moves and resizes at once; rect is a copy', async () => {
+    const page = await open('window');
+    const box = await page.evaluate(() => {
+      t.notes.rect.x = 9999;
+      t.notes.setRect({ x: 30, y: 40, w: 200, h: 150 });
+      const b = document.querySelector('.win[aria-label="Notes"]').getBoundingClientRect();
+      const s = b.width / 200;
+      return [t.notes.rect, Math.round(b.height / s)];
+    });
+    assert.deepEqual(box, [{ x: 30, y: 40, w: 200, h: 150 }, 150]);
+    await close(page);
+  });
+
+  test('scroll bars follow the content without being told', async () => {
+    const page = await open('window');
+    const notes = win(page, 'Notes');
+    assert.equal(await notes.evaluate((e) => e.classList.contains('sv')), false);
+    await page.evaluate(() => {
+      const tall = document.createElement('div');
+      tall.style.height = '1000px';
+      t.notes.content.append(tall);
+    });
+    await page.waitForFunction(() => document.querySelector('.win[aria-label="Notes"]').classList.contains('sv'));
+    await page.evaluate(() => t.notes.content.lastChild.remove());
+    await page.waitForFunction(() => !document.querySelector('.win[aria-label="Notes"]').classList.contains('sv'));
+    await close(page);
+  });
+
   test('close boxes have finger-sized touch targets on touch screens', async () => {
     const page = await open('window', { width: 390, height: 664, isMobile: true, hasTouch: true, deviceScaleFactor: 3 });
     const box = await center(win(page, 'Notes').locator('.close'));
@@ -351,8 +379,8 @@ describe('desktop', () => {
     await page.waitForTimeout(500);
     await page.evaluate(() => {
       const a = t.area();
-      Object.assign(t.projects.rect, { x: a.x + a.w - t.projects.rect.w - 80, y: a.y + a.h - t.projects.rect.h - 70 });
-      t.projects.layout();
+      const r = t.projects.rect;
+      t.projects.setRect({ x: a.x + a.w - r.w - 80, y: a.y + a.h - r.h - 70 });
     });
     await drag(page, icon(page, 'Readme').locator('.img'), win(page, 'Projects').locator('.content > div.icon.win'));
     assert.equal(await icon(page, 'Readme').evaluate((e) => e.closest('.win[aria-label]').getAttribute('aria-label')), 'Projects');

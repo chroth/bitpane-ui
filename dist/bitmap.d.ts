@@ -8,7 +8,7 @@ export interface IconCanvases {
     opened: HTMLCanvasElement;
 }
 export declare function icon(art: IconArt | IconRows): IconCanvases;
-export declare function button(label: string, w: number, h: number, { isDefault, pressed }?: {
+export declare function buttonArt(label: string, w: number, h: number, { isDefault, pressed }?: {
     isDefault?: boolean | undefined;
     pressed?: boolean | undefined;
 }): HTMLCanvasElement;

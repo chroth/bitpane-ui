@@ -5,18 +5,19 @@ import * as check from './check.js';
 import { el, place, bitmapText, isOver, nearest } from './dom.js';
 import { measure } from './font.js';
 import { screen, area, onResize, track, outline, zoomRects } from './screen.js';
-export const TITLE_H = 19;
+const TITLE_H = 19;
 const INFO_H = 19;
+const SCROLL = 16; // scroll bar, including its border line
 const MIN_W = 120;
 const MIN_H = 90;
 const windowOf = new WeakMap();
 const openWindows = [];
 let topZ = 10;
 let cascade = 0;
-onResize(() => {
-    for (const w of openWindows)
-        w.layout();
-});
+// The outer size of a window whose content area is `content`.
+export function windowSize([w, h], { info = false } = {}) {
+    return [w + SCROLL + 2, h + TITLE_H + (info ? INFO_H : 0) + SCROLL + 2];
+}
 export function windowAt(e) {
     return nearest(e, '.win', windowOf);
 }
@@ -24,13 +25,12 @@ export function windowAt(e) {
 export class DesktopWindow {
     el;
     content;
-    /** Position and size; call layout() after changing it. */
-    rect;
     opener = null;
     /** Called after the window opens. */
     onShow = null;
     /** Called after the window closes. */
     onHide = null;
+    #rect;
     #title;
     #titleW;
     #info = null;
@@ -46,7 +46,7 @@ export class DesktopWindow {
         check.pixels(w, 'Window width', 1);
         check.pixels(h, 'Window height', 1);
         screen();
-        this.rect = { x: 0, y: 0, w, h };
+        this.#rect = { x: 0, y: 0, w, h };
         this.el = el('div', 'win');
         windowOf.set(this.el, this);
         this.el.setAttribute('role', 'dialog');
@@ -77,7 +77,27 @@ export class DesktopWindow {
                 this.#drag(e);
         });
         grow.addEventListener('pointerdown', (e) => this.#resize(e));
-        this.content.addEventListener('scroll', () => this.#updateScroll());
+        // Scroll bars follow the content without the page having to ask.
+        const update = () => this.#updateScroll();
+        this.content.addEventListener('scroll', update);
+        new ResizeObserver(update).observe(this.content);
+        new MutationObserver(update).observe(this.content, { childList: true, subtree: true, attributes: true, characterData: true });
+        onResize(() => {
+            if (this.el.isConnected)
+                this.#layout();
+        });
+    }
+    /** Position and size in screen pixels. */
+    get rect() {
+        return { ...this.#rect };
+    }
+    /** Moves or resizes the window, keeping it inside the visible area. */
+    setRect(changes) {
+        Object.assign(this.#rect, changes);
+        if (changes.x !== undefined || changes.y !== undefined)
+            this.#placed = true;
+        this.#zoomed = null;
+        this.#layout();
     }
     /** Up to three strings for the info line: left, centre and right. */
     setInfo(parts) {
@@ -90,12 +110,11 @@ export class DesktopWindow {
             return { t, w: measure(str, 'small') };
         });
         if (this.el.isConnected)
-            this.layout();
+            this.#layout();
     }
-    /** Applies `rect`, keeping the window inside the visible area, and updates the scroll bars. */
-    layout() {
+    #layout() {
         this.#clamp();
-        const r = this.rect;
+        const r = this.#rect;
         place(this.el, r);
         const inner = r.w - 2;
         this.#title.style.left = Math.max(26, Math.floor((inner - this.#titleW) / 2)) + 'px';
@@ -124,7 +143,7 @@ export class DesktopWindow {
         this.el.remove();
         this.opener?.setOpen(false);
         openWindows.at(-1)?.activate();
-        void zoomRects(this.rect, this.opener?.rect());
+        void zoomRects(this.#rect, this.opener?.rect());
         this.onHide?.();
     }
     activate() {
@@ -140,15 +159,15 @@ export class DesktopWindow {
     }
     toggleZoom() {
         if (this.#zoomed) {
-            this.rect = this.#zoomed;
+            this.#rect = this.#zoomed;
             this.#zoomed = null;
         }
         else {
             const a = area();
-            this.#zoomed = { ...this.rect };
-            this.rect = { x: a.x + 4, y: a.y + 4, w: a.w - 10, h: a.h - 10 };
+            this.#zoomed = { ...this.#rect };
+            this.#rect = { x: a.x + 4, y: a.y + 4, w: a.w - 10, h: a.h - 10 };
         }
-        this.layout();
+        this.#layout();
     }
     /** Runs each time the window is about to open. */
     beforeOpen() { }
@@ -157,10 +176,10 @@ export class DesktopWindow {
         if (!this.#placed)
             this.#placeFirst();
         this.#clamp();
-        await zoomRects(this.opener?.rect(), this.rect);
+        await zoomRects(this.opener?.rect(), this.#rect);
         screen().appendChild(this.el);
         openWindows.push(this);
-        this.layout();
+        this.#layout();
         this.activate();
         this.opener?.setOpen(true);
         this.onShow?.();
@@ -168,17 +187,17 @@ export class DesktopWindow {
     #placeFirst() {
         const p = this.opener?.placeWindow(this);
         if (p) {
-            Object.assign(this.rect, p);
+            Object.assign(this.#rect, p);
         }
         else {
             const a = area(), k = cascade++ % 6;
-            Object.assign(this.rect, { x: a.x + 24 + k * 20, y: a.y + 30 + k * 20 });
+            Object.assign(this.#rect, { x: a.x + 24 + k * 20, y: a.y + 30 + k * 20 });
         }
         this.#placed = true;
     }
     // Whole window inside the visible area, unless the screen is tiny.
     #clamp() {
-        const a = area(), r = this.rect;
+        const a = area(), r = this.#rect;
         r.w = Math.min(Math.max(MIN_W, r.w), Math.max(1, a.w - 8));
         r.h = Math.min(Math.max(MIN_H, r.h), Math.max(1, a.h - 8));
         r.x = Math.max(a.x + 4, Math.min(r.x, a.x + a.w - r.w - 4));
@@ -255,22 +274,23 @@ export class DesktopWindow {
         track(e, {
             move: (dx, dy) => {
                 ghost ??= outline();
-                ghost.set({ x: this.rect.x + dx, y: this.rect.y + dy, w: this.rect.w + 1, h: this.rect.h + 1 });
+                const r = this.#rect;
+                ghost.set({ x: r.x + dx, y: r.y + dy, w: r.w + 1, h: r.h + 1 });
             },
             end: (dx, dy, moved) => {
                 ghost?.remove();
                 if (!moved)
                     return;
-                this.rect.x += dx;
-                this.rect.y += dy;
-                this.layout();
+                this.#rect.x += dx;
+                this.#rect.y += dy;
+                this.#layout();
             },
         });
     }
     #resize(e) {
         e.stopPropagation();
         this.activate();
-        const r = this.rect, a = area();
+        const r = this.#rect, a = area();
         const sized = (dx, dy) => ({
             x: r.x,
             y: r.y,
@@ -285,9 +305,9 @@ export class DesktopWindow {
                 ghost.remove();
                 if (!moved)
                     return;
-                this.rect = sized(dx, dy);
+                this.#rect = sized(dx, dy);
                 this.#zoomed = null;
-                this.layout();
+                this.#layout();
             },
         });
     }

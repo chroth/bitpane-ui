@@ -276,7 +276,7 @@ export function icon(art: IconArt | IconRows): IconCanvases {
 
 // --- Push buttons ---
 
-export function button(label: string, w: number, h: number, { isDefault = false, pressed = false } = {}): HTMLCanvasElement {
+export function buttonArt(label: string, w: number, h: number, { isDefault = false, pressed = false } = {}): HTMLCanvasElement {
   const pad = isDefault ? 4 : 0;
   const W = w + pad * 2, H = h + pad * 2;
   const body = new Bitmap(W, H);
