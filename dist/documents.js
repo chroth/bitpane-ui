@@ -8,7 +8,7 @@ export function textWindow(title, lines, options) {
     // Lines are checked before the window exists, so a bad one leaves no trace.
     const hrefs = lines.map((l) => {
         check.text(typeof l === 'string' ? l : l.text, 'Text');
-        return typeof l === 'string' ? null : check.href(l, 'Link href');
+        return typeof l === 'string' ? null : check.href(l, 'Link href', options);
     });
     const widest = Math.max(...lines.map((l) => measure(typeof l === 'string' ? l : l.text, 'system')));
     const win = new DesktopWindow(title, windowSize([Math.max(242, widest + 52), lines.length * 16 + 48], options), options);

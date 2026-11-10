@@ -82,7 +82,7 @@ canvas.px, img.px {
 #screen :focus { outline: none; }
 #screen :focus-visible { outline: 1px dotted #000; outline-offset: 1px; }
 #screen .btn:focus-visible { outline: none; }
-#screen .win:focus-visible { outline: none; } /* the active title bar shows it */
+#screen .win .content:focus-visible { outline: none; } /* the active title bar shows it */
 
 .corner { position: absolute; z-index: 3000000; pointer-events: none; }
 .corner.tl { left: 0; top: 0; }
@@ -124,6 +124,9 @@ canvas.px, img.px {
 
 .win {
   position: absolute;
+  margin: 0;
+  padding: 0;
+  color: #000;
   background: #fff;
   border: 1px solid #000;
   box-shadow: 1px 1px 0 #000;
@@ -161,7 +164,7 @@ canvas.px, img.px {
 #screen .win.active .close, #screen .win.active .zoom { visibility: visible; }
 .win .tb button canvas { position: absolute; left: 0; top: 0; }
 .win .tb button canvas + canvas { visibility: hidden; }
-.win .tb button.down canvas + canvas { visibility: visible; }
+.win .tb button:active canvas + canvas { visibility: visible; }
 
 .win .info {
   position: relative;
@@ -266,7 +269,7 @@ canvas.px, img.px {
 .btn { position: absolute; }
 .btn canvas { position: absolute; left: 0; top: 0; }
 .btn .on { visibility: hidden; }
-.btn.down .on { visibility: visible; }
+.btn:active .on { visibility: visible; }
 
 
 /* Optional application menus. No bar is added until menuBar() is called. */
@@ -278,15 +281,20 @@ canvas.px, img.px {
   background: #fff;
   border-bottom: 1px solid #000;
 }
-.menu-group { position: relative; }
-#screen .menu-group > button { height: 21px; padding: 2px 10px 3px; }
-#screen .menu-group > button[aria-expanded="true"],
+#screen .menu-bar > button { height: 21px; padding: 2px 10px 3px; }
+#screen .menu-bar > button:has(+ .menu-popup:popover-open),
 #screen .menu-popup button:focus { background: #000; }
-.menu-group > button[aria-expanded="true"] canvas,
+.menu-bar > button:has(+ .menu-popup:popover-open) canvas,
 .menu-popup button:focus canvas { filter: invert(1); }
+/* A popover sits in the top layer, outside the scaled screen: scale it here,
+   and move it by --x and --y in screen pixels. */
 .menu-popup {
-  position: absolute;
-  top: 21px;
+  position: fixed;
+  inset: 0 auto auto 0;
+  margin: 0;
+  color: #000;
+  transform-origin: 0 0;
+  transform: scale(var(--scale, 1)) translate(var(--x, 0), var(--y, 0));
   min-width: 140px;
   max-width: calc(100vw / var(--scale, 1));
   max-height: calc(100dvh / var(--scale, 1) - 22px);

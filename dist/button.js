@@ -1,33 +1,25 @@
 import { buttonArt } from './bitmap.js';
 import * as check from './check.js';
-import { el, place, isOver } from './dom.js';
-import { track } from './screen.js';
-// Inverts while pressed. An action fires only if the pointer is released
-// over the button; a link is followed by the browser on its usual click.
-export function pushButton(parent, options) {
+import { el, place } from './dom.js';
+// The browser decides when it is pressed: a click, Enter or Space, a tap.
+// It looks pressed while :active.
+export function pushButton(parent, options, linkOptions) {
     const { label, rect, isDefault = false } = options;
     const { x, y, w, h } = rect;
     check.pixels(x, 'Button x');
     check.pixels(y, 'Button y');
-    check.pixels(w, 'Button width', 1);
-    check.pixels(h, 'Button height', 1);
+    check.drawn(w, 'Button width');
+    check.drawn(h, 'Button height');
     let b;
-    let activate;
     if ('href' in options) {
-        const a = el('a', 'btn');
-        a.href = check.href(options, 'Button href');
-        activate = () => a.click();
-        b = a;
+        b = el('a', 'btn');
+        b.href = check.href(options, 'Button href', linkOptions);
     }
     else {
-        const btn = el('button', 'btn');
-        btn.type = 'button';
-        activate = options.action;
-        btn.addEventListener('click', (e) => {
-            if (e.detail === 0)
-                activate(); // keyboard activation
-        });
-        b = btn;
+        const { action } = options;
+        b = el('button', 'btn');
+        b.type = 'button';
+        b.addEventListener('click', () => action());
     }
     const off = buttonArt(label, w, h, { isDefault });
     const on = buttonArt(label, w, h, { isDefault, pressed: true });
@@ -37,25 +29,5 @@ export function pushButton(parent, options) {
     const pad = isDefault ? 4 : 0;
     place(b, { x: x - pad, y: y - pad, w: off.width, h: off.height });
     parent.appendChild(b);
-    b.addEventListener('pointerdown', (e) => {
-        if (e.button > 0)
-            return;
-        b.classList.add('down');
-        track(e, {
-            end: (dx, dy, moved, ev) => {
-                b.classList.remove('down');
-                if (!('href' in options) && ev.type !== 'pointercancel' && isOver(b, ev))
-                    activate();
-            },
-        });
-    });
-    return Object.assign(b, {
-        press() {
-            b.classList.add('down');
-            setTimeout(() => {
-                b.classList.remove('down');
-                activate();
-            }, 120);
-        },
-    });
+    return b;
 }

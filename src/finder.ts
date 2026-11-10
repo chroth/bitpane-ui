@@ -28,7 +28,7 @@ export interface Wording {
   trash: string;
 }
 
-export interface DesktopOptions {
+export interface DesktopOptions extends check.LinkOptions {
   /** Disk size in K; folder windows count the space left down from it. */
   capacity?: number;
   text?: Partial<Wording>;
@@ -55,9 +55,13 @@ const clampTo = (b: Bounds, x: number, y: number): { x: number; y: number } =>
 class DesktopState {
   readonly folder: Folder;
   #selected: Icon | null = null;
-  #lastClick: { icon: Icon | null; time: number } = { icon: null, time: 0 };
 
-  constructor(readonly capacity: number, readonly wording: Wording, readonly labels: WindowOptions['labels']) {
+  constructor(
+    readonly capacity: number,
+    readonly wording: Wording,
+    readonly labels: WindowOptions['labels'],
+    readonly linkOptions: check.LinkOptions,
+  ) {
     const root = screen();
     this.folder = new Folder(this, root, null, () => {
       const a = area(), out: [number, number][] = [];
@@ -76,13 +80,6 @@ class DesktopState {
     if (this.#selected && this.#selected !== ic) this.#selected.el.classList.remove('selected');
     this.#selected = ic;
     ic?.el.classList.add('selected');
-  }
-
-  isDoubleClick(ic: Icon): boolean {
-    const now = Date.now();
-    const dbl = this.#lastClick.icon === ic && now - this.#lastClick.time < 500;
-    this.#lastClick = dbl ? { icon: null, time: 0 } : { icon: ic, time: now };
-    return dbl;
   }
 
   // Parks corner icons and pulls the rest back on screen.
@@ -201,6 +198,7 @@ class Icon implements Opener {
     this.#labelW = measure(label, 'small') + 2;
     lbl.style.left = Math.floor((32 - this.#labelW) / 2) + 'px';
     this.el.addEventListener('pointerdown', (e) => this.#down(e));
+    this.el.addEventListener('dblclick', () => void this.open());
     this.el.addEventListener('keydown', (e) => {
       if (href !== undefined && e.key === 'Enter' && isModified(e)) return;
       if (e.key === 'Enter' || e.key === ' ') {
@@ -280,8 +278,8 @@ class Icon implements Opener {
     return null;
   }
 
-  // Click selects, double-click opens, and dragging moves a gray outline
-  // that the icon follows when dropped.
+  // Pressing selects and dragging moves a gray outline that the icon follows
+  // when dropped; a double-click opens it.
   #down(e: PointerEvent): void {
     if (e.button > 0 || !this.folder) return;
     e.stopPropagation();
@@ -312,10 +310,7 @@ class Icon implements Opener {
       end: (dx, dy, moved, ev) => {
         ghost?.remove();
         setHover(null);
-        if (!moved) {
-          if (desktop.isDoubleClick(this)) void this.open();
-          return;
-        }
+        if (!moved) return;
         const t = this.#dropTarget(ev);
         if (!t) return;
         if (t.icon) return t.folder.add(this);
@@ -380,7 +375,7 @@ function claim(win: DesktopWindow, claimed: Set<DesktopWindow>): DesktopWindow {
 }
 
 // Checks every item before anything is made, so a bad one leaves no trace.
-function iconSpecs(items: readonly Item[]): IconSpec[] {
+function iconSpecs(items: readonly Item[], linkOptions: check.LinkOptions): IconSpec[] {
   const claimed = new Set<DesktopWindow>();
   return items.map((item) => {
     const { label, kind, kb, art } = item;
@@ -388,7 +383,7 @@ function iconSpecs(items: readonly Item[]): IconSpec[] {
     icon(art ?? kind); // throws on an unknown kind or bad art
     if (kb !== undefined) check.amount(kb, 'Item kb');
     return item.kind === 'application'
-      ? { label, kind, kb, art, href: check.href(item, 'Application href') }
+      ? { label, kind, kb, art, href: check.href(item, 'Application href', linkOptions) }
       : { label, kind, kb, art, opens: claim(item.opens, claimed) };
   });
 }
@@ -399,15 +394,15 @@ export class Desktop {
   #hasDisk = false;
   #hasTrash = false;
 
-  constructor({ capacity = 20480, text = {}, labels }: DesktopOptions = {}) {
+  constructor({ capacity = 20480, text = {}, labels, dangerouslyAllowSchemes = [] }: DesktopOptions = {}) {
     if (mounted) throw new Error('Only one Desktop can exist per page');
     if (!(capacity > 0) || !Number.isFinite(capacity)) throw new RangeError('capacity must be a positive number');
     mounted = true;
-    this.#state = new DesktopState(capacity, { ...ENGLISH, ...text }, labels);
+    this.#state = new DesktopState(capacity, { ...ENGLISH, ...text }, labels, { dangerouslyAllowSchemes });
   }
 
   folderWindow(title: string, items: readonly Item[], size: Size = [320, 160]): FolderWindow {
-    const specs = iconSpecs(items);
+    const specs = iconSpecs(items, this.#state.linkOptions);
     const win = new FolderWindow(this.#state, title, size);
     for (const spec of specs) new Icon(win.folder, spec);
     return win;
@@ -425,7 +420,7 @@ export class Desktop {
   /** The Trash, in the bottom right corner; it looks full while it holds something. There is one. */
   trash(items: readonly Item[]): void {
     if (this.#hasTrash) throw new Error('A Desktop has only one Trash');
-    const specs = iconSpecs(items);
+    const specs = iconSpecs(items, this.#state.linkOptions);
     const { wording } = this.#state;
     let ic: Icon | null = null;
     const win = new FolderWindow(this.#state, wording.trash, [240, 130], () => ic?.setKind(win.folder.items.length ? 'trashFull' : 'trash'));

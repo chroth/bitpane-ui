@@ -4,14 +4,20 @@
 
 const MAX_TEXT = 500;
 const MAX_PIXELS = 10000;
+const MAX_DRAWN = 1000; // for what is drawn pixel by pixel, such as buttons
 const SAFE_SCHEMES = ['http:', 'https:', 'mailto:'];
 
-/**
- * A link target. Only http:, https:, mailto: and relative URLs are accepted
- * unless `dangerouslyAllowSchemes` lists the scheme, e.g. `['javascript:']`.
- */
+/** A link target: an http:, https:, mailto: or relative URL, unless the call allows more. */
 export interface Link {
   href: string;
+}
+
+/**
+ * Lets one call accept other link schemes, e.g. `['javascript:']`. It is an
+ * option of the call and never part of a link, so that link data from
+ * elsewhere cannot allow itself.
+ */
+export interface LinkOptions {
   dangerouslyAllowSchemes?: readonly string[];
 }
 
@@ -25,11 +31,16 @@ export function amount(value: number, what: string): number {
   return value;
 }
 
-export function pixels(value: number, what: string, min = -MAX_PIXELS): number {
-  if (!Number.isFinite(value) || value < min || value > MAX_PIXELS) {
-    throw new RangeError(`${what} must be a number from ${min} to ${MAX_PIXELS}`);
+export function pixels(value: number, what: string, min = -MAX_PIXELS, max = MAX_PIXELS): number {
+  if (!Number.isFinite(value) || value < min || value > max) {
+    throw new RangeError(`${what} must be a number from ${min} to ${max}`);
   }
   return value;
+}
+
+/** The size of something drawn pixel by pixel, which must stay small enough to draw at once. */
+export function drawn(value: number, what: string): number {
+  return pixels(value, what, 1, MAX_DRAWN);
 }
 
 // Returns the checked string, which callers must use instead of the input:
@@ -38,10 +49,11 @@ export function pixels(value: number, what: string, min = -MAX_PIXELS): number {
 // browser will parse it, so letter case, whitespace and control characters
 // cannot disguise a scheme; anything without a scheme is relative and takes
 // the page's own.
-export function href(link: Link, what: string): string {
+export function href(link: Link, what: string, { dangerouslyAllowSchemes = [] }: LinkOptions = {}): string {
   if (link.href == null) throw new TypeError(`${what} is missing`);
+  if ('dangerouslyAllowSchemes' in link) throw new TypeError('dangerouslyAllowSchemes is an option of the call, not part of a link');
   const value = String(link.href);
-  const allowed = Array.from(link.dangerouslyAllowSchemes ?? [], String);
+  const allowed = Array.from(dangerouslyAllowSchemes, String);
   for (const s of allowed) {
     if (!/^[a-z][a-z0-9+.-]*:$/.test(s)) {
       throw new TypeError('dangerouslyAllowSchemes entries must be lowercase schemes such as "javascript:"');
@@ -54,7 +66,7 @@ export function href(link: Link, what: string): string {
     throw new TypeError(`${what} is not a valid URL`);
   }
   if (!SAFE_SCHEMES.includes(scheme) && !allowed.includes(scheme)) {
-    throw new Error(`${what} uses the unsafe URL scheme "${scheme}"; list it in dangerouslyAllowSchemes to allow it on purpose`);
+    throw new Error(`${what} uses the unsafe URL scheme "${scheme}"; list it in the call's dangerouslyAllowSchemes option to allow it on purpose`);
   }
   return value;
 }

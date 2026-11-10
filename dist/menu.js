@@ -1,7 +1,10 @@
 // The optional menu bar, one per screen, drawn in the same bitmap font as
-// windows. Nothing is added to the page until menuBar() is called.
+// windows. Nothing is added to the page until menuBar() is called. Each menu
+// is a popover its title opens: the browser opens and closes it, closes it on
+// Escape or a click elsewhere, focuses its first item and returns focus to
+// the title. Arrow keys move between items and menus.
 import { bitmapText, el } from './dom.js';
-import { screen, area, onResize, reserveMenu } from './screen.js';
+import { screen, area, onResize, reserveMenu, rectOf } from './screen.js';
 const HEIGHT = 22;
 let mounted = false;
 /** Mounts the menu bar. Returns a function that removes it. */
@@ -11,31 +14,21 @@ export function menuBar(menus, { label = 'Application menu' } = {}) {
     // Built off the page, so a bad label leaves no trace.
     const bar = el('nav', 'menu-bar');
     bar.setAttribute('aria-label', label);
-    let active = null;
     const triggers = [];
-    const openers = new Map();
-    const close = (restoreFocus = false) => {
-        if (!active)
-            return;
-        const { trigger, popup } = active;
-        popup.hidden = true;
-        trigger.setAttribute('aria-expanded', 'false');
-        active = null;
-        if (restoreFocus)
-            trigger.focus();
-    };
+    const popups = [];
+    const isOpen = (popup) => popup.matches(':popover-open');
     for (const menu of menus) {
-        const group = el('div', 'menu-group', bar);
         const trigger = bitmapText(menu.label, 'system', 'button');
         trigger.type = 'button';
         trigger.setAttribute('aria-haspopup', 'menu');
-        trigger.setAttribute('aria-expanded', 'false');
-        group.appendChild(trigger);
-        triggers.push(trigger);
-        const popup = el('div', 'menu-popup', group);
-        popup.hidden = true;
+        bar.appendChild(trigger);
+        const popup = el('div', 'menu-popup', bar);
+        popup.popover = 'auto';
         popup.setAttribute('role', 'menu');
         popup.setAttribute('aria-label', menu.label);
+        trigger.popoverTargetElement = popup;
+        triggers.push(trigger);
+        popups.push(popup);
         const items = [];
         for (const item of menu.items) {
             if (!item) {
@@ -51,68 +44,61 @@ export function menuBar(menus, { label = 'Application menu' } = {}) {
             if (!button.disabled)
                 items.push(button);
             button.addEventListener('click', () => {
-                close(true);
+                popup.hidePopover();
                 item.action();
             });
         }
-        const open = (last = false) => {
-            close();
-            popup.hidden = false;
-            trigger.setAttribute('aria-expanded', 'true');
-            active = { trigger, popup };
-            // Shift menus at the right edge left so they stay on narrow screens.
-            popup.style.left = '0px';
-            const overflow = popup.getBoundingClientRect().right - bar.getBoundingClientRect().right;
-            if (overflow > 0)
-                popup.style.left = -Math.ceil(overflow / (bar.getBoundingClientRect().width / bar.offsetWidth)) + 'px';
-            (last ? items.at(-1) : items[0])?.focus();
-        };
-        openers.set(trigger, () => open());
-        trigger.addEventListener('click', () => (active?.trigger === trigger ? close(true) : open()));
+        if (items[0])
+            items[0].autofocus = true;
+        // A popover sits in the top layer, outside the scaled screen: the
+        // stylesheet scales it, and this puts it under its title, on screen.
+        new ResizeObserver(() => {
+            if (!isOpen(popup))
+                return;
+            const a = area(), t = rectOf(trigger);
+            const x = Math.max(a.x, Math.min(t.x, a.x + a.w - popup.offsetWidth));
+            popup.style.setProperty('--x', x + 'px');
+            popup.style.setProperty('--y', a.y - 1 + 'px');
+        }).observe(popup);
         trigger.addEventListener('keydown', (e) => {
-            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-                e.preventDefault();
-                open(e.key === 'ArrowUp');
-            }
+            if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp')
+                return;
+            e.preventDefault();
+            if (!isOpen(popup))
+                popup.showPopover();
+            if (e.key === 'ArrowUp')
+                items.at(-1)?.focus();
         });
         popup.addEventListener('keydown', (e) => {
+            if (e.key === 'Tab')
+                return popup.hidePopover();
+            if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key))
+                return;
+            e.preventDefault();
             const index = items.indexOf(document.activeElement);
-            if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) {
-                e.preventDefault();
-                const next = e.key === 'Home' ? 0
-                    : e.key === 'End' ? items.length - 1
-                        : (index + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
-                items[next]?.focus();
-            }
+            const next = e.key === 'Home' ? 0
+                : e.key === 'End' ? items.length - 1
+                    : (index + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+            items[next]?.focus();
         });
     }
     // Left and Right move between menus, opening the next one if one was open.
-    const onKey = (e) => {
-        if (e.key === 'Escape') {
-            e.preventDefault();
-            close(true);
-        }
-        if (e.key === 'Tab')
-            close();
-        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-            e.preventDefault();
-            const current = active?.trigger ?? document.activeElement;
-            const index = triggers.indexOf(current);
-            const next = triggers[(index + (e.key === 'ArrowRight' ? 1 : -1) + triggers.length) % triggers.length];
-            const wasOpen = active !== null;
-            close();
-            if (wasOpen)
-                openers.get(next)();
-            else
-                next.focus();
-        }
-    };
-    const outside = (e) => { if (!bar.contains(e.target))
-        close(); };
-    const blur = (e) => { if (!bar.contains(e.relatedTarget))
-        close(); };
+    bar.addEventListener('keydown', (e) => {
+        if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')
+            return;
+        e.preventDefault();
+        const open = popups.findIndex(isOpen);
+        const index = open >= 0 ? open : triggers.indexOf(document.activeElement);
+        const next = (index + (e.key === 'ArrowRight' ? 1 : -1) + triggers.length) % triggers.length;
+        if (open >= 0)
+            popups[next].showPopover();
+        else
+            triggers[next].focus();
+    });
     const layout = () => {
-        close();
+        for (const popup of popups)
+            if (isOpen(popup))
+                popup.hidePopover();
         const a = area();
         Object.assign(bar.style, { left: a.x + 'px', top: a.y - HEIGHT + 'px', width: a.w + 'px' });
     };
@@ -121,12 +107,8 @@ export function menuBar(menus, { label = 'Application menu' } = {}) {
     reserveMenu(HEIGHT);
     layout();
     const stop = onResize(layout);
-    bar.addEventListener('keydown', onKey);
-    bar.addEventListener('focusout', blur);
-    document.addEventListener('pointerdown', outside);
     return () => {
         stop();
-        document.removeEventListener('pointerdown', outside);
         bar.remove();
         mounted = false;
         reserveMenu(0);

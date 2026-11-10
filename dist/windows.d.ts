@@ -23,10 +23,14 @@ export interface Opener {
 }
 export declare function windowSize([w, h]: Size, { info }?: WindowOptions): Size;
 export declare function windowAt(e: Element): DesktopWindow | null;
-/** A draggable, resizable, zoomable window. Put your own DOM or canvas in `content`. */
+/**
+ * A draggable, resizable, zoomable window. Put your own DOM or canvas in `content`.
+ * It is a non-modal `<dialog>`: the browser gives it its role, focuses its
+ * content when it opens, and returns focus when it closes.
+ */
 export declare class DesktopWindow {
     #private;
-    readonly el: HTMLDivElement;
+    readonly el: HTMLDialogElement;
     readonly content: HTMLDivElement;
     opener: Opener | null;
     /** Called after the window opens. */

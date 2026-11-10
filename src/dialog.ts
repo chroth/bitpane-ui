@@ -5,7 +5,7 @@
 
 import { icon as iconArt, type IconArt } from './bitmap.js';
 import { pushButton, type ButtonTarget, type PushButton } from './button.js';
-import type { Link } from './check.js';
+import type { Link, LinkOptions } from './check.js';
 import { el, place, bitmapText } from './dom.js';
 import { measure } from './font.js';
 import { screen, area, onResize } from './screen.js';
@@ -18,7 +18,7 @@ export type AlertButton = { label: string } & ({ action?: () => void } | Link);
 export interface AlertOptions {
   icon?: IconArt;
   message: string | readonly string[];
-  /** Laid out from the left; the last one is the default that Return presses. */
+  /** Laid out from the left; the last one is the default, focused first so Return presses it. */
   buttons: readonly AlertButton[];
 }
 
@@ -27,7 +27,7 @@ export interface Alert {
   close(): void;
 }
 
-export function alert({ icon, message, buttons }: AlertOptions): Alert {
+export function alert({ icon, message, buttons }: AlertOptions, linkOptions?: LinkOptions): Alert {
   if (!buttons.length) throw new Error('An alert needs at least one button');
   const lines = typeof message === 'string' ? [message] : message;
   const textX = icon ? 62 : 16;
@@ -38,7 +38,6 @@ export function alert({ icon, message, buttons }: AlertOptions): Alert {
 
   const box = el('dialog', 'dlg');
   box.setAttribute('role', 'alertdialog');
-  box.tabIndex = -1; // so a click anywhere on it keeps focus in the alert
   if (icon) {
     const art = iconArt(icon).normal;
     box.appendChild(art);
@@ -59,18 +58,10 @@ export function alert({ icon, message, buttons }: AlertOptions): Alert {
     x += widths[i]! + 12;
     const isDefault = buttons.length > 1 && i === buttons.length - 1;
     const target: ButtonTarget = 'href' in b ? b : { action: () => { if (close()) b.action?.(); } };
-    return pushButton(box, { label: b.label, rect, isDefault, ...target });
+    return pushButton(box, { label: b.label, rect, isDefault, ...target }, linkOptions);
   });
   const def = made[made.length - 1]!;
   def.autofocus = true;
-
-  // A focused button handles its own keys, modified ones included; Return
-  // anywhere else in the alert presses the default.
-  box.addEventListener('keydown', (e) => {
-    if (e.key !== 'Enter' || made.includes(document.activeElement as PushButton)) return;
-    e.preventDefault();
-    def.press();
-  });
   // Only a button closes it: not Escape (closedby, or cancel where that is
   // unsupported), and if a browser closes it anyway it opens again.
   let closing = false;

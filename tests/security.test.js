@@ -12,6 +12,7 @@ const FORBIDDEN = {
   'storage and cookies': /\b(localStorage|sessionStorage|indexedDB|document\.cookie|caches)\b/,
   'cross-window messaging': /\b(postMessage|BroadcastChannel|window\.open(er)?)\b/,
   'attributes that run code or style': /setAttribute\(\s*['"`](on\w+|style|href|src|srcset|formaction)['"`]/,
+  'links or HTML set through Object.assign': /Object\.assign\([^)]*\b(href|src|srcset|srcdoc|innerHTML|outerHTML|action|formAction)\b/,
 };
 
 const files = readdirSync('src').filter((f) => f.endsWith('.ts'));
@@ -27,11 +28,19 @@ for (const [risk, pattern] of Object.entries(FORBIDDEN)) {
   });
 }
 
-// Every place that sets a link checks the URL first (see check.href).
+// Every place that sets a link or navigates checks the URL first (see check.href).
 test('every link a library function creates goes through check.href', () => {
   for (const file of files) {
     const src = readFileSync(`src/${file}`, 'utf8');
-    const sets = (src.match(/\.href\s*=(?!=)/g) || []).length;
-    if (sets) assert.ok((src.match(/check\.href\(/g) || []).length >= 1, `${file} sets href without check.href`);
+    const sets = (src.match(/\.href\s*=(?!=)|\blocation\s*=(?!=)|\blocation\.(assign|replace)\(|\.(action|formAction)\s*=(?!=)/g) || []).length;
+    if (sets) assert.ok((src.match(/check\.href\(/g) || []).length >= 1, `${file} sets a link without check.href`);
+  }
+});
+
+// Pictures are the only thing loaded from a URL; images cannot run script.
+test('only the picture window sets a src', () => {
+  for (const file of files) {
+    const sets = /\.(src|srcset)\s*=(?!=)/.test(readFileSync(`src/${file}`, 'utf8'));
+    assert.equal(sets, file === 'documents.ts', `${file}: unexpected src`);
   }
 });

@@ -9,7 +9,7 @@ export { Desktop } from './finder.js';
 export type { Rect, TextTag } from './dom.js';
 export type { FontName } from './font.js';
 export type { IconArt, IconRows } from './bitmap.js';
-export type { Link } from './check.js';
+export type { Link, LinkOptions } from './check.js';
 export type { ButtonOptions, ButtonTarget, PushButton } from './button.js';
 export type { Menu, MenuItem } from './menu.js';
 export type { Alert, AlertButton, AlertOptions } from './dialog.js';

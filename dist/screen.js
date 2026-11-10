@@ -87,15 +87,21 @@ export function rectOf(e) {
         h: Math.round(r.height / scale),
     };
 }
-/** Follows a pointer drag that started with `event` until that pointer is released; other fingers are ignored. */
+/**
+ * Follows a pointer drag that started with `event` until that pointer is
+ * released. The element under it captures the pointer, so the drag keeps
+ * going outside it and outside the page.
+ */
 export function track(event, { move, end }) {
-    const id = event.pointerId;
+    const target = event.target, id = event.pointerId;
+    target.setPointerCapture(id);
     const start = pointer(event);
     let moved = false;
     const delta = (ev) => {
         const p = pointer(ev);
         return [Math.round(p.x - start.x), Math.round(p.y - start.y)];
     };
+    // Another finger on the same element is not this drag.
     const onMove = (ev) => {
         if (ev.pointerId !== id)
             return;
@@ -108,14 +114,14 @@ export function track(event, { move, end }) {
     const onUp = (ev) => {
         if (ev.pointerId !== id)
             return;
-        removeEventListener('pointermove', onMove);
-        removeEventListener('pointerup', onUp);
-        removeEventListener('pointercancel', onUp);
+        target.removeEventListener('pointermove', onMove);
+        target.removeEventListener('pointerup', onUp);
+        target.removeEventListener('pointercancel', onUp);
         end?.(...delta(ev), moved, ev);
     };
-    addEventListener('pointermove', onMove);
-    addEventListener('pointerup', onUp);
-    addEventListener('pointercancel', onUp);
+    target.addEventListener('pointermove', onMove);
+    target.addEventListener('pointerup', onUp);
+    target.addEventListener('pointercancel', onUp);
 }
 /** A 50% gray outline rectangle, as drawn while dragging. */
 export function outline(parent = screen()) {
