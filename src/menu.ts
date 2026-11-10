@@ -4,6 +4,7 @@
 // Escape or a click elsewhere, focuses its first item and returns focus to
 // the title. Arrow keys move between items and menus.
 
+import * as check from './check.js';
 import { bitmapText, el } from './dom.js';
 import { screen, area, onResize, reserveMenu, rectOf } from './screen.js';
 
@@ -25,9 +26,11 @@ export interface Menu {
 /** Mounts the menu bar. Returns a function that removes it. */
 export function menuBar(menus: readonly Menu[], { label = 'Application menu' } = {}): () => void {
   if (mounted) throw new Error('There is only one menu bar');
-  // Built off the page, so a bad label leaves no trace.
+  // Checked and built off the page, so bad input leaves no trace.
+  check.count(menus, 'The menu bar');
+  for (const menu of menus) check.count(menu.items, 'A menu');
   const bar = el('nav', 'menu-bar');
-  bar.setAttribute('aria-label', label);
+  bar.setAttribute('aria-label', check.text(label, 'Menu bar label'));
   const triggers: HTMLButtonElement[] = [];
   const popups: HTMLDivElement[] = [];
   const isOpen = (popup: HTMLElement): boolean => popup.matches(':popover-open');

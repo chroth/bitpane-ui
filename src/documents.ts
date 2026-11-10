@@ -48,8 +48,10 @@ class PictureWindow extends DesktopWindow {
   constructor(title: string, { src, width, height, alt }: Picture, options?: WindowOptions) {
     check.pixels(width, 'Picture width', 1);
     check.pixels(height, 'Picture height', 1);
+    check.text(alt, 'Picture alt');
+    const checked = check.src(src, 'Picture src');
     super(title, windowSize([width, height], options), options);
-    this.#src = src;
+    this.#src = checked;
     this.#img = el('img', 'px', this.content);
     Object.assign(this.#img, { width, height, alt, draggable: false, referrerPolicy: 'no-referrer' });
   }
