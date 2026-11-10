@@ -89,12 +89,12 @@ export class DesktopWindow {
     if (title) this.el.setAttribute('aria-label', title);
 
     const tb = el('div', 'tb', this.el);
-    const close = this.#titleButton(tb, 'close', labels.close ?? 'Close', () => this.hide());
+    const close = this.#titleButton(tb, 'close', check.text(labels.close ?? 'Close', 'Close label'), () => this.hide());
     this.#title = bitmapText(title);
     this.#title.classList.add('ttl');
     tb.insertBefore(this.#title, close.nextSibling);
     this.#titleW = measure(title, 'system') + 12;
-    this.#titleButton(tb, 'zoom', labels.zoom ?? 'Zoom', () => this.toggleZoom());
+    this.#titleButton(tb, 'zoom', check.text(labels.zoom ?? 'Zoom', 'Zoom label'), () => this.toggleZoom());
 
     let top = TITLE_H;
     if (info) {
