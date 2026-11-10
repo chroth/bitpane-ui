@@ -776,30 +776,46 @@ describe('controls', () => {
 
 describe('secure by design', () => {
   test('every link API refuses unsafe URLs unless the call allows them on purpose', async () => {
-    const page = await open('apps');
+    let page = await open('apps');
     const results = await page.evaluate(() => {
       const bad = 'javascript:alert(1)';
-      const allow = ['javascript:'];
+      const allow = { dangerouslyAllowSchemes: ['javascript:'] };
       const attempt = (f) => { try { f(); return 'allowed'; } catch (e) { return e.message; } };
       const rect = { x: 0, y: 0, w: 60, h: 20 };
       const r = {};
-      r.textWindow = [attempt(() => t.api.textWindow('X', [{ text: 'x', href: bad }])), attempt(() => t.api.textWindow('X', [{ text: 'x', href: bad, dangerouslyAllowSchemes: allow }]))];
-      r.pushButton = [attempt(() => t.api.pushButton(document.body, { label: 'X', rect, href: bad })), attempt(() => t.api.pushButton(document.body, { label: 'X', rect, href: bad, dangerouslyAllowSchemes: allow }).remove())];
+      r.textWindow = [attempt(() => t.api.textWindow('X', [{ text: 'x', href: bad }])), attempt(() => t.api.textWindow('X', [{ text: 'x', href: bad }], allow))];
+      r.pushButton = [attempt(() => t.api.pushButton(document.body, { label: 'X', rect, href: bad })), attempt(() => t.api.pushButton(document.body, { label: 'X', rect, href: bad }, allow).remove())];
       r.alert = [attempt(() => t.api.alert({ message: 'x', buttons: [{ label: 'Go', href: bad }] }))];
       r.alertLeftovers = document.querySelectorAll('.dlg').length;
-      r.alert.push(attempt(() => t.api.alert({ message: 'x', buttons: [{ label: 'Go', href: bad, dangerouslyAllowSchemes: allow }] }).close()));
-      const app = (extra) => attempt(() => t.desktop.folderWindow('X', [{ label: 'X', kind: 'application', href: bad, ...extra }]));
-      r.application = [app(), app({ dangerouslyAllowSchemes: allow })];
+      r.alert.push(attempt(() => t.api.alert({ message: 'x', buttons: [{ label: 'Go', href: bad }] }, allow).close()));
+      r.application = [attempt(() => t.desktop.folderWindow('X', [{ label: 'X', kind: 'application', href: bad }]))];
+      // Link data cannot allow itself, even where the call allows the scheme.
+      const data = JSON.parse('{"text":"x","label":"X","kind":"application","href":"javascript:alert(1)","dangerouslyAllowSchemes":["javascript:"]}');
+      r.selfAllowed = [
+        attempt(() => t.api.textWindow('X', [data], allow)),
+        attempt(() => t.api.pushButton(document.body, { ...data, rect }, allow)),
+        attempt(() => t.api.alert({ message: 'x', buttons: [data] }, allow)),
+        attempt(() => t.desktop.folderWindow('X', [data])),
+      ];
       return r;
     });
-    const refused = 'uses the unsafe URL scheme "javascript:"; list it in dangerouslyAllowSchemes to allow it on purpose';
+    const refused = 'uses the unsafe URL scheme "javascript:"; list it in the call\'s dangerouslyAllowSchemes option to allow it on purpose';
     assert.deepEqual(results, {
       textWindow: [`Link href ${refused}`, 'allowed'],
       pushButton: [`Button href ${refused}`, 'allowed'],
       alert: [`Button href ${refused}`, 'allowed'],
       alertLeftovers: 0,
-      application: [`Application href ${refused}`, 'allowed'],
+      application: [`Application href ${refused}`],
+      selfAllowed: Array(4).fill('dangerouslyAllowSchemes is an option of the call, not part of a link'),
     });
+    await close(page);
+    page = await open('window');
+    const app = await page.evaluate(() => {
+      const desktop = new t.api.Desktop({ dangerouslyAllowSchemes: ['javascript:'] });
+      const apps = desktop.folderWindow('Apps', [{ label: 'X', kind: 'application', href: 'javascript:void 0' }]);
+      return apps.content.querySelector('a.icon').getAttribute('href');
+    });
+    assert.equal(app, 'javascript:void 0');
     await close(page);
   });
 
@@ -853,7 +869,7 @@ describe('secure by design', () => {
       const attempt = (f) => { try { f(); return 'no error'; } catch (e) { return e.message; } };
       const r = [
         attempt(() => new t.api.DesktopWindow('X', [NaN, 100])),
-        attempt(() => t.api.pushButton(document.body, { label: 'OK', rect: { x: 0, y: 0, w: 1e9, h: 20 }, action() {} })),
+        attempt(() => t.api.pushButton(document.body, { label: 'OK', rect: { x: 0, y: 0, w: 1001, h: 20 }, action() {} })),
         attempt(() => t.api.bitmapText('x', 'system', 'script')),
         attempt(() => t.api.bitmapText('x'.repeat(501))),
         attempt(() => t.api.alert({ message: 'x', buttons: [] })),
@@ -864,7 +880,7 @@ describe('secure by design', () => {
     assert.deepEqual(results, {
       r: [
         'Window width must be a number from 1 to 10000',
-        'Button width must be a number from 1 to 10000',
+        'Button width must be a number from 1 to 1000',
         'bitmapText cannot create a <script>',
         'Text is longer than 500 characters',
         'An alert needs at least one button',

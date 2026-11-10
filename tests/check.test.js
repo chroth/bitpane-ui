@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import * as check from '../dist/check.js';
 
-const href = (h, allow) => check.href({ href: h, dangerouslyAllowSchemes: allow }, 'href');
+const href = (h, allow) => check.href({ href: h }, 'href', allow && { dangerouslyAllowSchemes: allow });
 
 test('links accept http(s), mailto and relative URLs', () => {
   for (const h of ['https://example.com/', 'HTTP://example.com', 'mailto:a@example.com', '/games', 'about', '#top', '?q=1', '//example.com/x', '']) {
@@ -51,10 +51,19 @@ test('dangerouslyAllowSchemes allows exactly the listed schemes', () => {
   }
 });
 
+test('a link cannot allow its own scheme, own or inherited', () => {
+  const link = { href: 'javascript:alert(1)', dangerouslyAllowSchemes: ['javascript:'] };
+  assert.throws(() => check.href(link, 'href'), /option of the call, not part of a link/);
+  assert.throws(() => check.href(Object.create(link), 'href'), /option of the call, not part of a link/);
+  assert.throws(() => check.href(JSON.parse(JSON.stringify(link)), 'href', { dangerouslyAllowSchemes: ['javascript:'] }), /option of the call/);
+});
+
 test('text length and pixel values are checked', () => {
   assert.equal(check.text('x'.repeat(500), 'Label').length, 500);
   assert.throws(() => check.text('x'.repeat(501), 'Label'), /longer than 500/);
   for (const bad of [NaN, Infinity, 20000]) assert.throws(() => check.pixels(bad, 'n'), /must be a number/);
   assert.throws(() => check.pixels(0, 'w', 1), /from 1 to/);
   assert.equal(check.pixels(-5, 'x'), -5);
+  assert.equal(check.drawn(1000, 'w'), 1000);
+  for (const bad of [0, 1001, NaN]) assert.throws(() => check.drawn(bad, 'w'), /from 1 to 1000/);
 });

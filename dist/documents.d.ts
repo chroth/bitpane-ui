@@ -4,7 +4,7 @@ import { DesktopWindow, type WindowOptions } from './windows.js';
 export type TextLine = string | ({
     text: string;
 } & check.Link);
-export declare function textWindow(title: string, lines: readonly TextLine[], options?: WindowOptions): DesktopWindow;
+export declare function textWindow(title: string, lines: readonly TextLine[], options?: WindowOptions & check.LinkOptions): DesktopWindow;
 export interface Picture {
     src: string;
     width: number;

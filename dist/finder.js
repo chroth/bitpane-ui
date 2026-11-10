@@ -22,12 +22,14 @@ class DesktopState {
     capacity;
     wording;
     labels;
+    linkOptions;
     folder;
     #selected = null;
-    constructor(capacity, wording, labels) {
+    constructor(capacity, wording, labels, linkOptions) {
         this.capacity = capacity;
         this.wording = wording;
         this.labels = labels;
+        this.linkOptions = linkOptions;
         const root = screen();
         this.folder = new Folder(this, root, null, () => {
             const a = area(), out = [];
@@ -338,7 +340,7 @@ function claim(win, claimed) {
     return win;
 }
 // Checks every item before anything is made, so a bad one leaves no trace.
-function iconSpecs(items) {
+function iconSpecs(items, linkOptions) {
     const claimed = new Set();
     return items.map((item) => {
         const { label, kind, kb, art } = item;
@@ -347,7 +349,7 @@ function iconSpecs(items) {
         if (kb !== undefined)
             check.amount(kb, 'Item kb');
         return item.kind === 'application'
-            ? { label, kind, kb, art, href: check.href(item, 'Application href') }
+            ? { label, kind, kb, art, href: check.href(item, 'Application href', linkOptions) }
             : { label, kind, kb, art, opens: claim(item.opens, claimed) };
     });
 }
@@ -356,16 +358,16 @@ export class Desktop {
     #state;
     #hasDisk = false;
     #hasTrash = false;
-    constructor({ capacity = 20480, text = {}, labels } = {}) {
+    constructor({ capacity = 20480, text = {}, labels, dangerouslyAllowSchemes = [] } = {}) {
         if (mounted)
             throw new Error('Only one Desktop can exist per page');
         if (!(capacity > 0) || !Number.isFinite(capacity))
             throw new RangeError('capacity must be a positive number');
         mounted = true;
-        this.#state = new DesktopState(capacity, { ...ENGLISH, ...text }, labels);
+        this.#state = new DesktopState(capacity, { ...ENGLISH, ...text }, labels, { dangerouslyAllowSchemes });
     }
     folderWindow(title, items, size = [320, 160]) {
-        const specs = iconSpecs(items);
+        const specs = iconSpecs(items, this.#state.linkOptions);
         const win = new FolderWindow(this.#state, title, size);
         for (const spec of specs)
             new Icon(win.folder, spec);
@@ -384,7 +386,7 @@ export class Desktop {
     trash(items) {
         if (this.#hasTrash)
             throw new Error('A Desktop has only one Trash');
-        const specs = iconSpecs(items);
+        const specs = iconSpecs(items, this.#state.linkOptions);
         const { wording } = this.#state;
         let ic = null;
         const win = new FolderWindow(this.#state, wording.trash, [240, 130], () => ic?.setKind(win.folder.items.length ? 'trashFull' : 'trash'));

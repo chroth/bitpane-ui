@@ -22,7 +22,7 @@ export interface Wording {
     free(k: string): string;
     trash: string;
 }
-export interface DesktopOptions {
+export interface DesktopOptions extends check.LinkOptions {
     /** Disk size in K; folder windows count the space left down from it. */
     capacity?: number;
     text?: Partial<Wording>;
@@ -36,7 +36,7 @@ export declare class FolderWindow extends DesktopWindow {
 /** Desktop icons, folders, the disk and the Trash. One per page. */
 export declare class Desktop {
     #private;
-    constructor({ capacity, text, labels }?: DesktopOptions);
+    constructor({ capacity, text, labels, dangerouslyAllowSchemes }?: DesktopOptions);
     folderWindow(title: string, items: readonly Item[], size?: Size): FolderWindow;
     /** The disk icon, in the top right corner of the desktop. There is one. */
     disk(label: string, folder: FolderWindow): void;

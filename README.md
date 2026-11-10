@@ -70,7 +70,7 @@ Works with mouse, touch and keyboard.
 
 Secure by design: no HTML or code from strings, strict input checks that throw before anything changes, inert backgrounds behind alerts, no network, storage or cookies, and no runtime dependencies. Works under a strict Content Security Policy with Trusted Types.
 
-Links accept only `http:`, `https:`, `mailto:` and relative URLs. To use another scheme on purpose, list it next to the `href`, e.g. `{ href, dangerouslyAllowSchemes: ['javascript:'] }`.
+Links accept only `http:`, `https:`, `mailto:` and relative URLs. To use another scheme on purpose, pass `{ dangerouslyAllowSchemes: ['javascript:'] }` as the last argument of `pushButton` or `alert`, in the options of `textWindow`, or to `new Desktop()`. It is never read from a link itself.
 
 See [SECURITY.md](SECURITY.md) for the security model and how to report a vulnerability.
 

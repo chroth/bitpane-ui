@@ -9,11 +9,11 @@ import { DesktopWindow, windowSize, type WindowOptions } from './windows.js';
 /** A line of text, or a link that opens in a new tab without referrer or opener. */
 export type TextLine = string | ({ text: string } & check.Link);
 
-export function textWindow(title: string, lines: readonly TextLine[], options?: WindowOptions): DesktopWindow {
+export function textWindow(title: string, lines: readonly TextLine[], options?: WindowOptions & check.LinkOptions): DesktopWindow {
   // Lines are checked before the window exists, so a bad one leaves no trace.
   const hrefs = lines.map((l) => {
     check.text(typeof l === 'string' ? l : l.text, 'Text');
-    return typeof l === 'string' ? null : check.href(l, 'Link href');
+    return typeof l === 'string' ? null : check.href(l, 'Link href', options);
   });
   const widest = Math.max(...lines.map((l) => measure(typeof l === 'string' ? l : l.text, 'system')));
   const win = new DesktopWindow(title, windowSize([Math.max(242, widest + 52), lines.length * 16 + 48], options), options);

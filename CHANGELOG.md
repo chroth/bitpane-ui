@@ -3,6 +3,8 @@
 ## 0.13.0
 - **Breaking:** `pushButton` returns the plain `<button>` or `<a>`; `press()` is gone. Return in an alert presses the focused button, which is the default when it opens.
 - **Breaking:** `DesktopWindow.el` is a `<dialog>`.
+- **Breaking:** `dangerouslyAllowSchemes` is an option of the call: the last argument of `pushButton` and `alert`, an option of `textWindow`, and of `new Desktop()`. A link that carries it is rejected, so link data cannot allow its own scheme.
+- **Breaking:** push buttons are at most 1000 pixels wide and high; larger ones could freeze the page while being drawn.
 - Behaviour the browser already has is now left to it:
   - Buttons and the close and zoom boxes act on the native `click` and look pressed while `:active`.
   - Windows are non-modal dialogs. The browser focuses their content when they open, and returns focus when they close.

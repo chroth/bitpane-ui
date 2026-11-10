@@ -12,17 +12,17 @@ export type PushButton = HTMLButtonElement | HTMLAnchorElement;
 
 // The browser decides when it is pressed: a click, Enter or Space, a tap.
 // It looks pressed while :active.
-export function pushButton(parent: HTMLElement, options: ButtonOptions): PushButton {
+export function pushButton(parent: HTMLElement, options: ButtonOptions, linkOptions?: check.LinkOptions): PushButton {
   const { label, rect, isDefault = false } = options;
   const { x, y, w, h } = rect;
   check.pixels(x, 'Button x');
   check.pixels(y, 'Button y');
-  check.pixels(w, 'Button width', 1);
-  check.pixels(h, 'Button height', 1);
+  check.drawn(w, 'Button width');
+  check.drawn(h, 'Button height');
   let b: PushButton;
   if ('href' in options) {
     b = el('a', 'btn');
-    b.href = check.href(options, 'Button href');
+    b.href = check.href(options, 'Button href', linkOptions);
   } else {
     const { action } = options;
     b = el('button', 'btn');

@@ -8,7 +8,7 @@ import { el, place, bitmapText } from './dom.js';
 import { measure } from './font.js';
 import { screen, area, onResize } from './screen.js';
 const PAD = 4; // the dialog's double border
-export function alert({ icon, message, buttons }) {
+export function alert({ icon, message, buttons }, linkOptions) {
     if (!buttons.length)
         throw new Error('An alert needs at least one button');
     const lines = typeof message === 'string' ? [message] : message;
@@ -40,7 +40,7 @@ export function alert({ icon, message, buttons }) {
         const isDefault = buttons.length > 1 && i === buttons.length - 1;
         const target = 'href' in b ? b : { action: () => { if (close())
                 b.action?.(); } };
-        return pushButton(box, { label: b.label, rect, isDefault, ...target });
+        return pushButton(box, { label: b.label, rect, isDefault, ...target }, linkOptions);
     });
     const def = made[made.length - 1];
     def.autofocus = true;
