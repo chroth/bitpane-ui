@@ -10,8 +10,5 @@ export type ButtonOptions = {
     isDefault?: boolean;
 } & ButtonTarget;
 /** A push button: a `<button>`, or an `<a>` when given an href. */
-export type PushButton = (HTMLButtonElement | HTMLAnchorElement) & {
-    /** Animates a keyboard-style press, then activates the button. */
-    press(): void;
-};
+export type PushButton = HTMLButtonElement | HTMLAnchorElement;
 export declare function pushButton(parent: HTMLElement, options: ButtonOptions): PushButton;

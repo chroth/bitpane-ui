@@ -30,11 +30,6 @@ export function bitmapText(text, font = 'system', tag = 'span') {
 export function isModified(e) {
     return e.metaKey || e.ctrlKey || e.shiftKey || e.altKey;
 }
-// Hit-tests instead of comparing rectangles, so an element's enlarged touch
-// area (a CSS pseudo-element) counts as over it.
-export function isOver(e, event) {
-    return e.contains(document.elementFromPoint(event.clientX, event.clientY));
-}
 // The library object behind the nearest `selector` ancestor of `e`, skipping
 // page elements that merely share the class name.
 export function nearest(e, selector, map) {

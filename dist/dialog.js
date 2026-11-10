@@ -19,7 +19,6 @@ export function alert({ icon, message, buttons }) {
     const h = Math.max(20 + lines.length * 16, icon ? 46 : 0) + 12 + 20 + 14 + 2 * PAD;
     const box = el('dialog', 'dlg');
     box.setAttribute('role', 'alertdialog');
-    box.tabIndex = -1; // so a click anywhere on it keeps focus in the alert
     if (icon) {
         const art = iconArt(icon).normal;
         box.appendChild(art);
@@ -45,14 +44,6 @@ export function alert({ icon, message, buttons }) {
     });
     const def = made[made.length - 1];
     def.autofocus = true;
-    // A focused button handles its own keys, modified ones included; Return
-    // anywhere else in the alert presses the default.
-    box.addEventListener('keydown', (e) => {
-        if (e.key !== 'Enter' || made.includes(document.activeElement))
-            return;
-        e.preventDefault();
-        def.press();
-    });
     // Only a button closes it: not Escape (closedby, or cancel where that is
     // unsupported), and if a browser closes it anyway it opens again.
     let closing = false;

@@ -10,7 +10,7 @@ export type AlertButton = {
 export interface AlertOptions {
     icon?: IconArt;
     message: string | readonly string[];
-    /** Laid out from the left; the last one is the default that Return presses. */
+    /** Laid out from the left; the last one is the default, focused first so Return presses it. */
     buttons: readonly AlertButton[];
 }
 export interface Alert {

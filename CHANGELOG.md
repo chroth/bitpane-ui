@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.13.0
+- **Breaking:** `pushButton` returns the plain `<button>` or `<a>`; `press()` is gone. Return in an alert presses the focused button, which is the default when it opens.
+- **Breaking:** `DesktopWindow.el` is a `<dialog>`.
+- Behaviour the browser already has is now left to it:
+  - Buttons and the close and zoom boxes act on the native `click` and look pressed while `:active`.
+  - Windows are non-modal dialogs. The browser focuses their content when they open, and returns focus when they close.
+  - Keys scroll a window because its content has focus.
+  - Icons open on the native `dblclick`, which follows the system's double-click speed.
+  - Menus are popovers their titles open. The browser closes them on Escape or a click elsewhere and returns focus to the title.
+  - Drags capture the pointer.
+
 ## 0.12.1
 - Alerts are built on a native modal `<dialog>`. The browser keeps everything else inert and returns focus when an alert closes. They look and behave as before.
 

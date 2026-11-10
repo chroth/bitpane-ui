@@ -337,12 +337,13 @@ describe('windows', () => {
     await page.mouse.wheel(0, 300);
     await page.waitForFunction(() => t.notes.content.scrollTop === 300);
     assert.equal(await page.evaluate(() => t.notes.content.offsetWidth - t.notes.content.clientWidth), 0, 'a native scroll bar shows');
-    await win(page, 'Notes').focus();
-    await page.keyboard.press('Home');
-    await page.keyboard.press('ArrowDown');
-    assert.equal(await top(), 16);
+    await win(page, 'Notes').locator('.content').focus();
     await page.keyboard.press('End');
-    assert.equal(await top(), await page.evaluate(() => t.notes.content.scrollHeight - t.notes.content.clientHeight));
+    await page.waitForFunction(() => t.notes.content.scrollTop === t.notes.content.scrollHeight - t.notes.content.clientHeight);
+    await page.keyboard.press('Home');
+    await page.waitForFunction(() => t.notes.content.scrollTop === 0);
+    await page.keyboard.press('PageDown');
+    await page.waitForFunction(() => t.notes.content.scrollTop > 50);
     await page.keyboard.press('Home');
     const atTop = () => page.waitForFunction(() => t.notes.el.querySelector('.vs .thumb').style.top === '15px');
     await atTop();
@@ -436,6 +437,24 @@ describe('desktop', () => {
     assert.equal(await icon(page, 'Papperskorg').count(), 1);
     assert.equal(await win(page, 'HD').locator('.close').getAttribute('aria-label'), 'Stäng');
     assert.equal(await win(page, 'HD').locator('.zoom').getAttribute('aria-label'), 'Zooma');
+    await close(page);
+  });
+
+  test('icons open on a double-click but not after two quick drags', async () => {
+    const page = await open('desktop');
+    await openIcon(page, 'HD');
+    for (let i = 1; i <= 2; i++) {
+      const b = await icon(page, 'Readme').locator('.img').boundingBox();
+      await page.mouse.move(b.x + 10, b.y + 10);
+      await page.mouse.down({ clickCount: i });
+      await page.mouse.move(b.x + 60, b.y + 40, { steps: 4 });
+      await page.mouse.up({ clickCount: i });
+    }
+    await page.waitForTimeout(600);
+    assert.equal(await win(page, 'Readme').count(), 0, 'dragging twice opened the icon');
+    await icon(page, 'Readme').dblclick();
+    await page.waitForTimeout(500);
+    assert.equal(await win(page, 'Readme').count(), 1);
     await close(page);
   });
 
@@ -556,8 +575,7 @@ describe('desktop', () => {
     await icon(page, 'HD').focus();
     await page.keyboard.press('Enter');
     await page.waitForTimeout(500);
-    assert.equal(await page.evaluate(() => document.activeElement.getAttribute('aria-label')), 'HD');
-    assert.equal(await page.evaluate(() => document.activeElement.classList.contains('win')), true, 'focus is not on the window');
+    assert.equal(await page.evaluate(() => document.activeElement === t.hd.content), true, 'focus is not in the window content');
     await page.keyboard.press('Tab');
     assert.equal(await page.evaluate(() => !!document.activeElement.closest('.win[aria-label=HD]')), true, 'Tab left the window');
     await win(page, 'HD').locator('.close').focus();
@@ -614,7 +632,7 @@ describe('desktop', () => {
 });
 
 describe('controls', () => {
-  test('push buttons fire on release over them, by keyboard, and via press()', async () => {
+  test('push buttons fire on release over them and by keyboard', async () => {
     const page = await open('window');
     const ok = win(page, 'Notes').locator('.btn');
     await ok.click();
@@ -627,9 +645,8 @@ describe('controls', () => {
     assert.equal(await page.evaluate(() => t.pressed), 1, 'fired although released elsewhere');
     await ok.focus();
     await page.keyboard.press('Enter');
-    assert.equal(await page.evaluate(() => t.pressed), 2);
-    await ok.evaluate((b) => b.press());
-    await page.waitForFunction(() => t.pressed === 3);
+    await page.keyboard.press(' ');
+    assert.equal(await page.evaluate(() => t.pressed), 3);
     await close(page);
   });
 
@@ -647,17 +664,23 @@ describe('controls', () => {
     assert.equal(withMenu.y - before.y, 22, 'menu bar space not reserved');
     assert.equal(await page.locator('.menu-bar').getAttribute('aria-label'), 'Main menu');
     const file = page.getByRole('button', { name: 'File' });
+    const fileOpen = () => page.evaluate(() => document.querySelector('.menu-popup[aria-label=File]').matches(':popover-open'));
     await file.click();
-    assert.equal(await file.getAttribute('aria-expanded'), 'true');
+    assert.equal(await fileOpen(), true);
     assert.equal(await page.evaluate(() => document.activeElement.textContent), 'New');
     await page.keyboard.press('ArrowDown');
     assert.equal(await page.evaluate(() => document.activeElement.textContent), 'Quit', 'disabled item not skipped');
     await page.keyboard.press('Enter');
     assert.deepEqual(await page.evaluate(() => t.menuActions), ['quit']);
-    assert.equal(await file.getAttribute('aria-expanded'), 'false');
+    assert.equal(await fileOpen(), false);
+    assert.equal(await page.evaluate(() => document.activeElement.textContent), 'File', 'focus did not go back to the title');
     await file.click();
     await page.keyboard.press('Escape');
-    assert.equal(await file.getAttribute('aria-expanded'), 'false');
+    assert.equal(await fileOpen(), false);
+    await file.click();
+    await page.mouse.click(700, 400);
+    assert.equal(await fileOpen(), false, 'a click elsewhere did not close the menu');
+    await file.focus();
     await page.keyboard.press('ArrowRight');
     assert.equal(await page.evaluate(() => document.activeElement.textContent), 'Edit');
     await file.click();
@@ -724,18 +747,9 @@ describe('controls', () => {
     await page.evaluate(() => { t.n = 0; t.a = t.api.alert({ message: 'x', buttons: [{ label: 'OK', action: () => t.n++ }] }); });
     await page.keyboard.press('Enter');
     await page.keyboard.press('Enter');
-    await page.evaluate(() => { t.a.buttons[0].press(); t.a.buttons[0].press(); });
+    await page.evaluate(() => { t.a.buttons[0].click(); t.a.buttons[0].click(); });
     await page.waitForTimeout(400);
     assert.equal(await page.evaluate(() => t.n), 1);
-    await close(page);
-  });
-
-  test('Return after clicking the alert background presses the default', async () => {
-    const page = await open('actionAlert');
-    const box = await page.locator('.dlg').boundingBox();
-    await page.mouse.click(box.x + 20, box.y + 10);
-    await page.keyboard.press('Enter');
-    await page.waitForFunction(() => t.choice === 'save');
     await close(page);
   });
 

@@ -3,7 +3,7 @@
 
 import { arrow, growBox, titleBox, type Direction } from './bitmap.js';
 import * as check from './check.js';
-import { el, place, bitmapText, isOver, nearest, type Rect } from './dom.js';
+import { el, place, bitmapText, nearest, type Rect } from './dom.js';
 import { measure } from './font.js';
 import { screen, area, onResize, track, outline, zoomRects, type Outline } from './screen.js';
 
@@ -51,9 +51,13 @@ interface ScrollBar {
   thumb: HTMLDivElement;
 }
 
-/** A draggable, resizable, zoomable window. Put your own DOM or canvas in `content`. */
+/**
+ * A draggable, resizable, zoomable window. Put your own DOM or canvas in `content`.
+ * It is a non-modal `<dialog>`: the browser gives it its role, focuses its
+ * content when it opens, and returns focus when it closes.
+ */
 export class DesktopWindow {
-  readonly el: HTMLDivElement;
+  readonly el: HTMLDialogElement;
   readonly content: HTMLDivElement;
   opener: Opener | null = null;
   /** Called after the window opens. */
@@ -72,7 +76,6 @@ export class DesktopWindow {
   #zoomed: Rect | null = null;
   #opening: Promise<void> | null = null;
   #wanted = false; // whether the last call was show() rather than hide()
-  #returnFocus: Element | null = null;
 
   // The title may be empty, for a window without one.
   constructor(title: string, size: Size, { info = false, labels = {} }: WindowOptions = {}) {
@@ -81,10 +84,8 @@ export class DesktopWindow {
     check.pixels(h, 'Window height', 1);
     screen();
     this.#rect = { x: 0, y: 0, w, h };
-    this.el = el('div', 'win');
+    this.el = el('dialog', 'win');
     windowOf.set(this.el, this);
-    this.el.setAttribute('role', 'dialog');
-    this.el.tabIndex = -1;
     if (title) this.el.setAttribute('aria-label', title);
 
     const tb = el('div', 'tb', this.el);
@@ -102,6 +103,9 @@ export class DesktopWindow {
     }
     this.content = el('div', 'content', this.el);
     this.content.style.top = top + 'px';
+    // Focused when the window opens, so keys scroll it.
+    this.content.tabIndex = -1;
+    this.content.autofocus = true;
     this.#vs = this.#scrollBar('vs', 'up', 'down');
     this.#vs.el.style.top = top - 1 + 'px';
     this.#hs = this.#scrollBar('hs', 'left', 'right');
@@ -109,11 +113,17 @@ export class DesktopWindow {
     grow.appendChild(growBox());
 
     this.el.addEventListener('pointerdown', () => this.activate());
+    // A press on the frame (title bar, scroll bars) puts focus in the content,
+    // where keys scroll it, instead of on the page.
+    this.el.addEventListener('mousedown', (e) => {
+      if (this.content.contains(e.target as Node)) return;
+      e.preventDefault();
+      this.content.focus({ preventScroll: true });
+    });
     tb.addEventListener('pointerdown', (e) => {
       if (e.button === 0 && !(e.target as Element).closest('button')) this.#drag(e);
     });
     grow.addEventListener('pointerdown', (e) => this.#resize(e));
-    this.el.addEventListener('keydown', (e) => this.#scrollKey(e));
     // Scroll bars follow the content without the page having to ask.
     const update = (): void => this.#updateScroll();
     this.content.addEventListener('scroll', update);
@@ -184,15 +194,13 @@ export class DesktopWindow {
     if (index < 0) return;
     const hadFocus = this.el.contains(document.activeElement);
     openWindows.splice(index, 1);
+    this.el.close();
     this.el.remove();
     this.opener?.setOpen(false);
     const next = openWindows.at(-1);
     next?.activate();
-    if (hadFocus) {
-      const back = this.#returnFocus;
-      if (back instanceof HTMLElement && back.isConnected && !back.closest('[inert]')) back.focus();
-      else next?.el.focus();
-    }
+    // close() returns focus where it was; if that is gone, to the window in front.
+    if (hadFocus && document.activeElement === document.body) next?.content.focus();
     void zoomRects(this.#rect, this.opener?.rect());
     this.onHide?.();
   }
@@ -225,9 +233,7 @@ export class DesktopWindow {
   /** Runs each time the window is about to open. */
   protected beforeOpen(): void {}
 
-  // Focus moves into the window, and goes back where it came from on hide.
   async #open(): Promise<void> {
-    this.#returnFocus = document.activeElement;
     this.beforeOpen();
     if (!this.#placed) this.#placeFirst();
     this.#clamp();
@@ -237,7 +243,10 @@ export class DesktopWindow {
     openWindows.push(this);
     this.#layout();
     this.activate();
-    this.el.focus();
+    // show() also takes focus, even away from a modal alert, so behind one
+    // the window opens without it.
+    if (document.querySelector(':modal')) this.el.open = true;
+    else this.el.show();
     this.opener?.setOpen(true);
     this.onShow?.();
   }
@@ -262,31 +271,19 @@ export class DesktopWindow {
     r.y = Math.max(a.y + 4, Math.min(r.y, a.y + a.h - r.h - 4));
   }
 
-  // Close and zoom boxes: highlighted while pressed, fire on release inside.
+  // Close and zoom boxes: plain buttons that look pressed while :active.
   #titleButton(tb: HTMLElement, kind: 'close' | 'zoom', name: string, action: () => void): HTMLButtonElement {
     const btn = el('button', kind, tb);
+    btn.type = 'button';
     btn.setAttribute('aria-label', name);
     btn.append(titleBox(kind, false), titleBox(kind, true));
-    btn.addEventListener('pointerdown', (e) => {
-      if (e.button > 0) return;
-      e.stopPropagation();
-      this.activate();
-      btn.classList.add('down');
-      track(e, {
-        end: (dx, dy, moved, ev) => {
-          btn.classList.remove('down');
-          if (isOver(btn, ev)) action();
-        },
-      });
-    });
-    btn.addEventListener('click', (e) => {
-      if (e.detail === 0) action();
-    });
+    btn.addEventListener('click', () => action());
     return btn;
   }
 
-  // Arrows scroll a line and the gray track a page, repeating while held;
-  // the thumb drags. The content also scrolls natively by wheel, touch and keys.
+  // The browser's own scroll bars are hidden. These draw the position: arrows
+  // scroll a line and the gray track a page, repeating while held, and the
+  // thumb drags. The content itself scrolls natively by wheel, touch and keys.
   #scrollBar(cls: 'vs' | 'hs', back: Direction, forward: Direction): ScrollBar {
     const bar = el('div', cls, this.el);
     const trackEl = el('div', 'track', bar);
@@ -338,21 +335,6 @@ export class DesktopWindow {
       });
     });
     return { el: bar, thumb };
-  }
-
-  // Scroll keys on the window itself; inside the content the browser handles them.
-  #scrollKey(e: KeyboardEvent): void {
-    if (e.target !== this.el) return;
-    const c = this.content, line = 16, page = c.clientHeight - 16;
-    const moves: Record<string, [number, number]> = {
-      ArrowUp: [0, -line], ArrowDown: [0, line], ArrowLeft: [-line, 0], ArrowRight: [line, 0],
-      PageUp: [0, -page], PageDown: [0, page], ' ': [0, e.shiftKey ? -page : page],
-      Home: [0, -c.scrollHeight], End: [0, c.scrollHeight],
-    };
-    const move = moves[e.key];
-    if (!move) return;
-    e.preventDefault();
-    c.scrollBy(...move);
   }
 
   #updateScroll(): void {

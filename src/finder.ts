@@ -55,7 +55,6 @@ const clampTo = (b: Bounds, x: number, y: number): { x: number; y: number } =>
 class DesktopState {
   readonly folder: Folder;
   #selected: Icon | null = null;
-  #lastClick: { icon: Icon | null; time: number } = { icon: null, time: 0 };
 
   constructor(readonly capacity: number, readonly wording: Wording, readonly labels: WindowOptions['labels']) {
     const root = screen();
@@ -76,13 +75,6 @@ class DesktopState {
     if (this.#selected && this.#selected !== ic) this.#selected.el.classList.remove('selected');
     this.#selected = ic;
     ic?.el.classList.add('selected');
-  }
-
-  isDoubleClick(ic: Icon): boolean {
-    const now = Date.now();
-    const dbl = this.#lastClick.icon === ic && now - this.#lastClick.time < 500;
-    this.#lastClick = dbl ? { icon: null, time: 0 } : { icon: ic, time: now };
-    return dbl;
   }
 
   // Parks corner icons and pulls the rest back on screen.
@@ -201,6 +193,7 @@ class Icon implements Opener {
     this.#labelW = measure(label, 'small') + 2;
     lbl.style.left = Math.floor((32 - this.#labelW) / 2) + 'px';
     this.el.addEventListener('pointerdown', (e) => this.#down(e));
+    this.el.addEventListener('dblclick', () => void this.open());
     this.el.addEventListener('keydown', (e) => {
       if (href !== undefined && e.key === 'Enter' && isModified(e)) return;
       if (e.key === 'Enter' || e.key === ' ') {
@@ -280,8 +273,8 @@ class Icon implements Opener {
     return null;
   }
 
-  // Click selects, double-click opens, and dragging moves a gray outline
-  // that the icon follows when dropped.
+  // Pressing selects and dragging moves a gray outline that the icon follows
+  // when dropped; a double-click opens it.
   #down(e: PointerEvent): void {
     if (e.button > 0 || !this.folder) return;
     e.stopPropagation();
@@ -312,10 +305,7 @@ class Icon implements Opener {
       end: (dx, dy, moved, ev) => {
         ghost?.remove();
         setHover(null);
-        if (!moved) {
-          if (desktop.isDoubleClick(this)) void this.open();
-          return;
-        }
+        if (!moved) return;
         const t = this.#dropTarget(ev);
         if (!t) return;
         if (t.icon) return t.folder.add(this);

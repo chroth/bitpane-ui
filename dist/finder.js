@@ -24,7 +24,6 @@ class DesktopState {
     labels;
     folder;
     #selected = null;
-    #lastClick = { icon: null, time: 0 };
     constructor(capacity, wording, labels) {
         this.capacity = capacity;
         this.wording = wording;
@@ -49,12 +48,6 @@ class DesktopState {
             this.#selected.el.classList.remove('selected');
         this.#selected = ic;
         ic?.el.classList.add('selected');
-    }
-    isDoubleClick(ic) {
-        const now = Date.now();
-        const dbl = this.#lastClick.icon === ic && now - this.#lastClick.time < 500;
-        this.#lastClick = dbl ? { icon: null, time: 0 } : { icon: ic, time: now };
-        return dbl;
     }
     // Parks corner icons and pulls the rest back on screen.
     arrange() {
@@ -167,6 +160,7 @@ class Icon {
         this.#labelW = measure(label, 'small') + 2;
         lbl.style.left = Math.floor((32 - this.#labelW) / 2) + 'px';
         this.el.addEventListener('pointerdown', (e) => this.#down(e));
+        this.el.addEventListener('dblclick', () => void this.open());
         this.el.addEventListener('keydown', (e) => {
             if (href !== undefined && e.key === 'Enter' && isModified(e))
                 return;
@@ -243,8 +237,8 @@ class Icon {
         }
         return null;
     }
-    // Click selects, double-click opens, and dragging moves a gray outline
-    // that the icon follows when dropped.
+    // Pressing selects and dragging moves a gray outline that the icon follows
+    // when dropped; a double-click opens it.
     #down(e) {
         if (e.button > 0 || !this.folder)
             return;
@@ -277,11 +271,8 @@ class Icon {
             end: (dx, dy, moved, ev) => {
                 ghost?.remove();
                 setHover(null);
-                if (!moved) {
-                    if (desktop.isDoubleClick(this))
-                        void this.open();
+                if (!moved)
                     return;
-                }
                 const t = this.#dropTarget(ev);
                 if (!t)
                     return;

@@ -18,7 +18,7 @@ export type AlertButton = { label: string } & ({ action?: () => void } | Link);
 export interface AlertOptions {
   icon?: IconArt;
   message: string | readonly string[];
-  /** Laid out from the left; the last one is the default that Return presses. */
+  /** Laid out from the left; the last one is the default, focused first so Return presses it. */
   buttons: readonly AlertButton[];
 }
 
@@ -38,7 +38,6 @@ export function alert({ icon, message, buttons }: AlertOptions): Alert {
 
   const box = el('dialog', 'dlg');
   box.setAttribute('role', 'alertdialog');
-  box.tabIndex = -1; // so a click anywhere on it keeps focus in the alert
   if (icon) {
     const art = iconArt(icon).normal;
     box.appendChild(art);
@@ -63,14 +62,6 @@ export function alert({ icon, message, buttons }: AlertOptions): Alert {
   });
   const def = made[made.length - 1]!;
   def.autofocus = true;
-
-  // A focused button handles its own keys, modified ones included; Return
-  // anywhere else in the alert presses the default.
-  box.addEventListener('keydown', (e) => {
-    if (e.key !== 'Enter' || made.includes(document.activeElement as PushButton)) return;
-    e.preventDefault();
-    def.press();
-  });
   // Only a button closes it: not Escape (closedby, or cancel where that is
   // unsupported), and if a browser closes it anyway it opens again.
   let closing = false;

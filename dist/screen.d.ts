@@ -14,7 +14,11 @@ export interface Drag {
     move?(dx: number, dy: number, ev: PointerEvent): void;
     end?(dx: number, dy: number, moved: boolean, ev: PointerEvent): void;
 }
-/** Follows a pointer drag that started with `event` until that pointer is released; other fingers are ignored. */
+/**
+ * Follows a pointer drag that started with `event` until that pointer is
+ * released. The element under it captures the pointer, so the drag keeps
+ * going outside it and outside the page.
+ */
 export declare function track(event: PointerEvent, { move, end }: Drag): void;
 export interface Outline {
     set(r: Rect): void;

@@ -36,7 +36,7 @@ Sizes and positions are in screen pixels; the screen is scaled up by a whole num
 
 **Controls**
 - `bitmapText(text, font)`: bitmap text that screen readers can read; `font` is `system` or `small`.
-- `pushButton(parent, { label, rect, isDefault, action })`: push button. With `href` instead of `action`, it is a plain link. Returns the element, with `press()`.
+- `pushButton(parent, { label, rect, isDefault, action })`: push button. With `href` instead of `action`, it is a plain link. Returns the element.
 - `menuBar([{ label, items: [{ label, action, disabled }, null] }], { label })`: menu bar; `null` is a separator. Returns a function that removes it.
 - `alert({ icon, message, buttons })`: modal alert. A button is `{ label, href }` or `{ label, action }`; action buttons close the alert. The last button is the default. Returns `{ buttons, close }`.
 
