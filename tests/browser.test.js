@@ -855,6 +855,69 @@ describe('secure by design', () => {
     await close(page);
   });
 
+  test('links the library makes send no referrer, also when an application launches', async () => {
+    const page = await open('apps');
+    const policies = await page.evaluate(() => {
+      const rect = { x: 0, y: 0, w: 60, h: 20 };
+      const button = t.api.pushButton(document.body, { label: 'Go', rect, href: '/x' });
+      const alert = t.api.alert({ message: 'x', buttons: [{ label: 'Go', href: '/x' }] });
+      const r = [button.referrerPolicy, alert.buttons[0].referrerPolicy, t.apps.content.querySelector('a.icon').referrerPolicy];
+      alert.close();
+      button.remove();
+      return r;
+    });
+    assert.deepEqual(policies, ['no-referrer', 'no-referrer', 'no-referrer']);
+    await openIcon(page, 'HD');
+    await icon(page, 'Game').evaluate((a) => { a.href = '/launched-page'; });
+    const [request] = await Promise.all([page.waitForRequest('**/launched-page'), icon(page, 'Game').dblclick()]);
+    assert.equal(request.headers().referer, undefined);
+    await page.context().close();
+  });
+
+  test('picture addresses must be http(s), data, blob or relative, and are not requested if refused', async () => {
+    const page = await open('window');
+    const requests = [];
+    page.on('request', (r) => requests.push(r.url()));
+    const r = await page.evaluate(() => ['javascript:alert(1)', 'file:///etc/passwd', 'ftp://x/y', '/pixel.png', 'data:image/png;base64,AAAA', 'blob:https://x/y'].map((src) => {
+      try { t.api.pictureWindow('P', { src, width: 10, height: 10, alt: '' }); return 'ok'; } catch (e) { return e.message; }
+    }));
+    const refused = (scheme) => `Picture src uses the URL scheme "${scheme}", which cannot be a picture`;
+    assert.deepEqual(r, [refused('javascript:'), refused('file:'), refused('ftp:'), 'ok', 'ok', 'ok']);
+    assert.deepEqual(requests, []);
+    await close(page);
+  });
+
+  test('lists and labels too long to build are refused', async () => {
+    const page = await open('window');
+    const r = await page.evaluate(() => {
+      const attempt = (f) => { try { f(); return 'no error'; } catch (e) { return e.message; } };
+      const desktop = new t.api.Desktop();
+      const items = (n) => Array.from({ length: n }, (_, i) => ({ label: 'I' + i, kind: 'application', href: '/x' }));
+      const entry = { label: 'item', action() {} };
+      return [
+        attempt(() => desktop.folderWindow('F', items(201))),
+        attempt(() => desktop.trash(items(201))),
+        attempt(() => t.api.menuBar([{ label: 'M', items: Array(201).fill(entry) }])),
+        attempt(() => t.api.menuBar(Array(201).fill({ label: 'M', items: [] }))),
+        attempt(() => t.api.menuBar([], { label: 'x'.repeat(501) })),
+        attempt(() => new t.api.DesktopWindow('W', [100, 100], { labels: { close: 'x'.repeat(501) } })),
+        attempt(() => t.api.pictureWindow('P', { src: '/pixel.png', width: 10, height: 10, alt: 'x'.repeat(501) })),
+        attempt(() => desktop.folderWindow('F', items(200))),
+      ];
+    });
+    assert.deepEqual(r, [
+      'A folder has more than 200 entries',
+      'A folder has more than 200 entries',
+      'A menu has more than 200 entries',
+      'The menu bar has more than 200 entries',
+      'Menu bar label is longer than 500 characters',
+      'Close label is longer than 500 characters',
+      'Picture alt is longer than 500 characters',
+      'no error',
+    ]);
+    await close(page);
+  });
+
   test('pictures load without sending a referrer', async () => {
     const page = await open('desktop');
     assert.equal(await page.evaluate(() => t.photo.content.querySelector('img').referrerPolicy), 'no-referrer');

@@ -14,6 +14,7 @@ export function pushButton(parent, options, linkOptions) {
     if ('href' in options) {
         b = el('a', 'btn');
         b.href = check.href(options, 'Button href', linkOptions);
+        b.referrerPolicy = 'no-referrer';
     }
     else {
         const { action } = options;

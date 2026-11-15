@@ -5,7 +5,9 @@
 const MAX_TEXT = 500;
 const MAX_PIXELS = 10000;
 const MAX_DRAWN = 1000; // for what is drawn pixel by pixel, such as buttons
+const MAX_COUNT = 200; // items in one folder or menu, menus in the bar
 const SAFE_SCHEMES = ['http:', 'https:', 'mailto:'];
+const IMAGE_SCHEMES = ['http:', 'https:', 'data:', 'blob:'];
 
 /** A link target: an http:, https:, mailto: or relative URL, unless the call allows more. */
 export interface Link {
@@ -24,6 +26,12 @@ export interface LinkOptions {
 export function text(value: string, what: string): string {
   if (value.length > MAX_TEXT) throw new RangeError(`${what} is longer than ${MAX_TEXT} characters`);
   return value;
+}
+
+/** A list short enough to build at once; building is slow in the thousands. */
+export function count<T>(list: readonly T[], what: string): readonly T[] {
+  if (list.length > MAX_COUNT) throw new RangeError(`${what} has more than ${MAX_COUNT} entries`);
+  return list;
 }
 
 export function amount(value: number, what: string): number {
@@ -69,4 +77,18 @@ export function href(link: Link, what: string, { dangerouslyAllowSchemes = [] }:
     throw new Error(`${what} uses the unsafe URL scheme "${scheme}"; list it in the call's dangerouslyAllowSchemes option to allow it on purpose`);
   }
   return value;
+}
+
+// An image address. The browser requests it as soon as the picture opens, so
+// it must come from the page itself, never from a visitor or other data.
+export function src(value: string, what: string): string {
+  const str = String(value);
+  let scheme: string;
+  try {
+    scheme = new URL(str, 'https://relative.invalid/').protocol;
+  } catch {
+    throw new TypeError(`${what} is not a valid URL`);
+  }
+  if (!IMAGE_SCHEMES.includes(scheme)) throw new Error(`${what} uses the URL scheme "${scheme}", which cannot be a picture`);
+  return str;
 }

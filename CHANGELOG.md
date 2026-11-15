@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.14.0
+- **Breaking:** a folder, a menu and the menu bar hold at most 200 entries; thousands took many seconds to build. Screen-reader labels and picture `alt` text are at most 500 characters.
+- **Breaking:** a picture `src` must be an `http:`, `https:`, `data:`, `blob:` or relative URL.
+- Links the library makes send no referrer, and an application launches by the browser following its link.
+
 ## 0.13.0
 - **Breaking:** `pushButton` returns the plain `<button>` or `<a>`; `press()` is gone. Return in an alert presses the focused button, which is the default when it opens.
 - **Breaking:** `DesktopWindow.el` is a `<dialog>`.

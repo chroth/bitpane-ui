@@ -150,12 +150,12 @@ class Icon implements Opener {
   readonly img: HTMLDivElement;
   readonly opens: DesktopWindow | null;
   readonly pinned: boolean;
+  #launching = false;
   folder: Folder | null = null;
   corner: 'top' | 'bottom' | null;
   kind: IconArt;
   x = 0;
   y = 0;
-  #href: string | null;
   #art: IconRows | undefined;
   #ownKb: number;
   #labelW: number;
@@ -165,7 +165,6 @@ class Icon implements Opener {
     this.kind = kind;
     this.#art = art;
     this.opens = opens ?? null;
-    this.#href = href ?? null;
     this.#ownKb = kb ?? DEFAULT_K[kind] ?? 0;
     this.corner = corner ?? null;
     this.pinned = corner !== undefined;
@@ -178,9 +177,10 @@ class Icon implements Opener {
       // open a new tab as usual, while a plain click only selects.
       const a = el('a', 'icon');
       a.href = href;
+      a.referrerPolicy = 'no-referrer';
       a.draggable = false;
       a.addEventListener('click', (e) => {
-        if (e.button !== 0 || isModified(e)) return;
+        if (this.#launching || e.button !== 0 || isModified(e)) return;
         e.preventDefault();
         if (e.detail === 0) void this.open(); // keyboard activation
       });
@@ -228,13 +228,15 @@ class Icon implements Opener {
     return this.#ownKb + (this.opens instanceof FolderWindow ? this.opens.folder.kb() : 0);
   }
 
-  // Links zoom out to the whole screen before the browser follows them.
+  // Links zoom out to the whole screen, then the browser follows them as it
+  // follows any clicked link.
   async open(): Promise<void> {
     if (this.opens) return this.opens.show();
-    if (this.#href) {
-      await zoomRects(this.rect(), area());
-      location.assign(this.#href);
-    }
+    if (!(this.el instanceof HTMLAnchorElement)) return;
+    await zoomRects(this.rect(), area());
+    this.#launching = true;
+    this.el.click();
+    this.#launching = false;
   }
 
   rect(): ReturnType<Opener['rect']> {
@@ -377,7 +379,7 @@ function claim(win: DesktopWindow, claimed: Set<DesktopWindow>): DesktopWindow {
 // Checks every item before anything is made, so a bad one leaves no trace.
 function iconSpecs(items: readonly Item[], linkOptions: check.LinkOptions): IconSpec[] {
   const claimed = new Set<DesktopWindow>();
-  return items.map((item) => {
+  return check.count(items, 'A folder').map((item) => {
     const { label, kind, kb, art } = item;
     check.text(label, 'Item label');
     icon(art ?? kind); // throws on an unknown kind or bad art

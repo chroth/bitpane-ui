@@ -3,6 +3,7 @@
 // is a popover its title opens: the browser opens and closes it, closes it on
 // Escape or a click elsewhere, focuses its first item and returns focus to
 // the title. Arrow keys move between items and menus.
+import * as check from './check.js';
 import { bitmapText, el } from './dom.js';
 import { screen, area, onResize, reserveMenu, rectOf } from './screen.js';
 const HEIGHT = 22;
@@ -11,9 +12,12 @@ let mounted = false;
 export function menuBar(menus, { label = 'Application menu' } = {}) {
     if (mounted)
         throw new Error('There is only one menu bar');
-    // Built off the page, so a bad label leaves no trace.
+    // Checked and built off the page, so bad input leaves no trace.
+    check.count(menus, 'The menu bar');
+    for (const menu of menus)
+        check.count(menu.items, 'A menu');
     const bar = el('nav', 'menu-bar');
-    bar.setAttribute('aria-label', label);
+    bar.setAttribute('aria-label', check.text(label, 'Menu bar label'));
     const triggers = [];
     const popups = [];
     const isOpen = (popup) => popup.matches(':popover-open');

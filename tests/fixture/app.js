@@ -103,4 +103,6 @@ const scenes = {
   },
 };
 
-scenes[location.hash.slice(1) || 'desktop']();
+// Only a scene defined above runs, whatever the URL says.
+const scene = location.hash.slice(1) || 'desktop';
+if (Object.hasOwn(scenes, scene)) scenes[scene]();
